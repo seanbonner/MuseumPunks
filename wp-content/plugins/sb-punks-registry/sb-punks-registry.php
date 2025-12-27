@@ -2,7 +2,7 @@
 /**
  * Plugin Name: SB Punks Registry
  * Description: MuseumPunks registry + front-page mosaic + numeric permalinks + single punk layout.
- * Version: 0.2.2
+ * Version: 0.2.3
  * Author: SB
  */
 
@@ -166,7 +166,7 @@ final class SB_Punks_Registry {
 	}
 
 	public static function enqueue_assets() : void {
-		$ver = '0.2.2';
+		$ver = '0.2.3';
 		wp_enqueue_style('sbpr', plugins_url('assets/sbpr.css', __FILE__), [], $ver);
 		wp_enqueue_script('sbpr', plugins_url('assets/sbpr.js', __FILE__), [], $ver, true);
 	}
@@ -573,24 +573,8 @@ final class SB_Punks_Registry {
 	 * Scale PNG image data using nearest-neighbor interpolation
 	 */
 	private static function scale_image_nearest_neighbor(string $image_data, int $target_size) : string {
-		// Try Imagick first (best quality control)
-		if (class_exists('Imagick')) {
-			try {
-				$im = new Imagick();
-				$im->readImageBlob($image_data);
-				$im->setImageInterpolateMethod(Imagick::INTERPOLATE_NEAREST_NEIGHBOR);
-				$im->resizeImage($target_size, $target_size, Imagick::FILTER_POINT, 1);
-				$im->setImageFormat('png');
-				$result = $im->getImageBlob();
-				$im->destroy();
-				return $result;
-			} catch (Exception $e) {
-				error_log('SBPR: Imagick scaling failed - ' . $e->getMessage());
-			}
-		}
-
-		// Fallback to GD
-		if (function_exists('imagecreatefrompng')) {
+		// Use GD for reliable nearest-neighbor scaling
+		if (function_exists('imagecreatefromstring')) {
 			$src = @imagecreatefromstring($image_data);
 			if ($src === false) {
 				error_log('SBPR: GD could not read image');
@@ -633,7 +617,7 @@ final class SB_Punks_Registry {
 			return $result;
 		}
 
-		error_log('SBPR: No image library available for scaling');
+		error_log('SBPR: GD not available for scaling');
 		return '';
 	}
 
