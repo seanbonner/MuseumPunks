@@ -23,6 +23,7 @@ jobs:
           password: ${{ secrets.FTP_PASSWORD }}
           local-dir: ./wp-content/themes/
           server-dir: /domains/museumpunks.com/public_html/wp-content/themes/
+          state-name: .themes-sync-state.json
 
       - name: Deploy plugins via FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
@@ -32,3 +33,4 @@ jobs:
           password: ${{ secrets.FTP_PASSWORD }}
           local-dir: ./wp-content/plugins/
           server-dir: /domains/museumpunks.com/public_html/wp-content/plugins/
+          state-name: .plugins-sync-state.json
