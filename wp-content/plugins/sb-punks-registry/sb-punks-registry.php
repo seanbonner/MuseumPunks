@@ -2,7 +2,7 @@
 /**
  * Plugin Name: SB Punks Registry
  * Description: MuseumPunks registry + front-page mosaic + numeric permalinks + single punk layout.
- * Version: 0.3.6
+ * Version: 0.4.0
  * Author: SB
  */
 
@@ -246,7 +246,7 @@ final class SB_Punks_Registry {
 	}
 
 	public static function enqueue_assets() : void {
-		$ver = '0.3.9';
+		$ver = '0.4.0';
 		wp_enqueue_style('sbpr', plugins_url('assets/sbpr.css', __FILE__), [], $ver);
 		wp_enqueue_script('sbpr', plugins_url('assets/sbpr.js', __FILE__), [], $ver, true);
 	}
@@ -622,9 +622,10 @@ final class SB_Punks_Registry {
 	const PUNK_IMAGE_BASE = 'https://www.larvalabs.com/public/images/cryptopunks/punk';
 
 	/**
-	 * Fetch punk PNG from Larva Labs and scale up with nearest-neighbor
+	 * Fetch punk PNG from Larva Labs (returns original 24x24 image)
+	 * Client-side JavaScript handles scaling for crisp pixel art display
 	 */
-	private static function fetch_punk_image(int $punk_id, int $target_size = 480) : string {
+	private static function fetch_punk_image(int $punk_id) : string {
 		if ($punk_id < 0 || $punk_id > 9999) return '';
 
 		// Format: punk0001.png, punk0123.png, punk9999.png
@@ -652,13 +653,7 @@ final class SB_Punks_Registry {
 			return '';
 		}
 
-		// Scale up the 24x24 image to target size using nearest-neighbor
-		$scaled = self::scale_image_nearest_neighbor($body, $target_size);
-		if (!empty($scaled)) {
-			return $scaled;
-		}
-
-		// Fallback to original if scaling fails
+		// Return original 24x24 image - JavaScript will scale client-side
 		return $body;
 	}
 
@@ -725,7 +720,7 @@ final class SB_Punks_Registry {
 
 	/**
 	 * Generate punk image and set as featured image
-	 * Bypasses WordPress image processing to preserve pixel-perfect scaling
+	 * Stores original 24x24 image - JavaScript handles client-side scaling
 	 */
 	public static function generate_punk_image(int $post_id, int $punk_id) : bool {
 		// Don't regenerate if featured image already exists
@@ -751,7 +746,7 @@ final class SB_Punks_Registry {
 		$file_path = $upload_dir['path'] . '/' . $filename;
 		$file_url = $upload_dir['url'] . '/' . $filename;
 
-		// Write file directly to uploads folder
+		// Write file directly to uploads folder (original 24x24)
 		if (file_put_contents($file_path, $image_data) === false) {
 			error_log('SBPR: Could not write file for punk ' . $punk_id);
 			return false;
@@ -773,12 +768,12 @@ final class SB_Punks_Registry {
 			return false;
 		}
 
-		// Set minimal metadata without triggering image processing
+		// Set metadata for original 24x24 image
 		$metadata = [
-			'width'  => 480,
-			'height' => 480,
+			'width'  => 24,
+			'height' => 24,
 			'file'   => $upload_dir['subdir'] . '/' . $filename,
-			'sizes'  => [], // No thumbnails
+			'sizes'  => [], // No thumbnails - JS handles scaling
 		];
 		wp_update_attachment_metadata($attachment_id, $metadata);
 

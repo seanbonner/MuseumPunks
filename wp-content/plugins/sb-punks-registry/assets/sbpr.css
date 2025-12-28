@@ -1,4 +1,4 @@
-/* SB Punks Registry 0.1.9 */
+/* SB Punks Registry 0.4.0 */
 
 /* Front page: kill theme header/nav/logo wrappers. */
 .sbpr-front header#masthead,
@@ -282,4 +282,16 @@ img[src*="punk-"] {
   image-rendering: -moz-crisp-edges;
   image-rendering: crisp-edges;
   -ms-interpolation-mode: nearest-neighbor;
+}
+
+/* Canvas elements used for crisp pixel art scaling */
+canvas.sbpr-single__img,
+canvas.sbpr-tile__img,
+canvas.sbpr-index__img {
+  display: block;
+  width: 100%;
+  height: auto;
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
 }
