@@ -95,6 +95,9 @@
   display:block;
   object-fit:cover;
   image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
+  -ms-interpolation-mode: nearest-neighbor;
 }
 
 /* Punks index page: 4 wide, big, full color */
@@ -113,7 +116,15 @@
   .sbpr-index { grid-template-columns: repeat(2, 1fr); }
 }
 .sbpr-index__card { position:relative; display:block; background:#638596; border:1px solid rgba(0,0,0,.12); }
-.sbpr-index__img { width:100%; height:auto; display:block; image-rendering: pixelated; }
+.sbpr-index__img {
+  width:100%;
+  height:auto;
+  display:block;
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
+  -ms-interpolation-mode: nearest-neighbor;
+}
 .sbpr-index__ph { display:block; aspect-ratio: 1 / 1; background: rgba(0,0,0,.08); }
 .sbpr-index__num {
   position:absolute; left:10px; top:10px;
@@ -175,9 +186,13 @@
 }
 
 .sbpr-single__img{
-  width: 100%;
+  display: block;
+  max-width: 100%;
   height: auto;
   image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
+  -ms-interpolation-mode: nearest-neighbor;
 }
 
 .sbpr-single__num{
@@ -222,12 +237,15 @@
 
 .sbpr-single__story{
   font-size: 16px;
-  line-height: 1.55;
-  max-width: 62ch;
+  line-height: 1.65;
 }
 
 .sbpr-single__story p{
-  margin: 0 0 12px;
+  margin: 0 0 1em;
+}
+
+.sbpr-single__story p:last-child{
+  margin-bottom: 0;
 }
 
 /* Mobile: image first, then text, then story */
@@ -244,10 +262,9 @@
 }
 
 
-/* Single: story starts below both columns */
+/* Single: story spans full width of grid, aligns with content above */
 .sbpr-single__story--full{
   grid-column: 1 / -1;
-  max-width: 78ch;
   margin-top: clamp(18px, 3vw, 34px);
   order: 3;
 }
@@ -258,6 +275,7 @@
 .sbpr-index__img,
 img[src*="punk-"] {
   image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
   image-rendering: crisp-edges;
   -ms-interpolation-mode: nearest-neighbor;
 }
