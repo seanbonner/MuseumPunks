@@ -2,7 +2,7 @@
 /**
  * Plugin Name: SB Punks Registry
  * Description: MuseumPunks registry + front-page mosaic + numeric permalinks + single punk layout.
- * Version: 0.4.0
+ * Version: 0.4.1
  * Author: SB
  */
 
@@ -246,7 +246,7 @@ final class SB_Punks_Registry {
 	}
 
 	public static function enqueue_assets() : void {
-		$ver = '0.4.0';
+		$ver = '0.4.1';
 		wp_enqueue_style('sbpr', plugins_url('assets/sbpr.css', __FILE__), [], $ver);
 		wp_enqueue_script('sbpr', plugins_url('assets/sbpr.js', __FILE__), [], $ver, true);
 	}
@@ -622,8 +622,7 @@ final class SB_Punks_Registry {
 	const PUNK_IMAGE_BASE = 'https://www.larvalabs.com/public/images/cryptopunks/punk';
 
 	/**
-	 * Fetch punk PNG from Larva Labs (returns original 24x24 image)
-	 * Client-side JavaScript handles scaling for crisp pixel art display
+	 * Fetch punk PNG from Larva Labs and scale to 480x480 with nearest-neighbor
 	 */
 	private static function fetch_punk_image(int $punk_id) : string {
 		if ($punk_id < 0 || $punk_id > 9999) return '';
@@ -653,13 +652,19 @@ final class SB_Punks_Registry {
 			return '';
 		}
 
-		// Return original 24x24 image - JavaScript will scale client-side
+		// Scale up to 480x480 using nearest-neighbor
+		$scaled = self::scale_image_nearest_neighbor($body, 480);
+		if (!empty($scaled)) {
+			return $scaled;
+		}
+
+		// Fallback to original if scaling fails
 		return $body;
 	}
 
 	/**
 	 * Scale PNG image data using nearest-neighbor interpolation
-	 * Each source pixel becomes a scale x scale block in the destination
+	 * Uses imagefilledrectangle to draw each pixel as a block (avoids GD anti-aliasing)
 	 */
 	private static function scale_image_nearest_neighbor(string $image_data, int $target_size) : string {
 		if (!function_exists('imagecreatefromstring')) {
@@ -677,34 +682,55 @@ final class SB_Punks_Registry {
 		$src_h = imagesy($src);
 		$scale = (int)($target_size / $src_w); // Integer scale factor (e.g., 20 for 24->480)
 
-		// Create truecolor destination for proper alpha support
+		// Create truecolor destination
 		$dst = imagecreatetruecolor($target_size, $target_size);
 		if ($dst === false) {
 			imagedestroy($src);
 			return '';
 		}
 
-		// CRITICAL: Disable alpha blending so colors are written exactly
-		imagealphablending($dst, false);
-		imagesavealpha($dst, true);
+		// CRITICAL: Set up alpha handling BEFORE any drawing
+		imagealphablending($dst, false);  // Don't blend, overwrite
+		imagesavealpha($dst, true);       // Preserve alpha in output
 
-		// Scale using pure pixel-by-pixel copy (no GD drawing functions)
-		for ($dy = 0; $dy < $target_size; $dy++) {
-			$sy = (int)($dy / $scale);
-			for ($dx = 0; $dx < $target_size; $dx++) {
-				$sx = (int)($dx / $scale);
+		// Fill with transparent background first
+		$transparent = imagecolorallocatealpha($dst, 0, 0, 0, 127);
+		imagefilledrectangle($dst, 0, 0, $target_size - 1, $target_size - 1, $transparent);
 
-				// Get source pixel color index
+		// Build a color cache to avoid reallocating colors
+		$color_cache = [];
+
+		// Draw each source pixel as a filled rectangle
+		for ($sy = 0; $sy < $src_h; $sy++) {
+			for ($sx = 0; $sx < $src_w; $sx++) {
+				// Get source pixel
 				$src_color = imagecolorat($src, $sx, $sy);
-
-				// Get RGBA components
 				$rgba = imagecolorsforindex($src, $src_color);
 
-				// Create color with exact RGBA values
-				$dst_color = ($rgba['alpha'] << 24) | ($rgba['red'] << 16) | ($rgba['green'] << 8) | $rgba['blue'];
+				// Skip fully transparent pixels
+				if ($rgba['alpha'] === 127) continue;
 
-				// Set pixel directly
-				imagesetpixel($dst, $dx, $dy, $dst_color);
+				// Create/get color for destination
+				$color_key = "{$rgba['red']},{$rgba['green']},{$rgba['blue']},{$rgba['alpha']}";
+				if (!isset($color_cache[$color_key])) {
+					$color_cache[$color_key] = imagecolorallocatealpha(
+						$dst,
+						$rgba['red'],
+						$rgba['green'],
+						$rgba['blue'],
+						$rgba['alpha']
+					);
+				}
+				$dst_color = $color_cache[$color_key];
+
+				// Calculate destination rectangle
+				$dx1 = $sx * $scale;
+				$dy1 = $sy * $scale;
+				$dx2 = $dx1 + $scale - 1;
+				$dy2 = $dy1 + $scale - 1;
+
+				// Draw filled rectangle for this pixel
+				imagefilledrectangle($dst, $dx1, $dy1, $dx2, $dy2, $dst_color);
 			}
 		}
 
@@ -720,7 +746,7 @@ final class SB_Punks_Registry {
 
 	/**
 	 * Generate punk image and set as featured image
-	 * Stores original 24x24 image - JavaScript handles client-side scaling
+	 * Stores pre-scaled 480x480 image with nearest-neighbor interpolation
 	 */
 	public static function generate_punk_image(int $post_id, int $punk_id) : bool {
 		// Don't regenerate if featured image already exists
@@ -768,12 +794,12 @@ final class SB_Punks_Registry {
 			return false;
 		}
 
-		// Set metadata for original 24x24 image
+		// Set metadata for 480x480 scaled image
 		$metadata = [
-			'width'  => 24,
-			'height' => 24,
+			'width'  => 480,
+			'height' => 480,
 			'file'   => $upload_dir['subdir'] . '/' . $filename,
-			'sizes'  => [], // No thumbnails - JS handles scaling
+			'sizes'  => [], // No thumbnails needed
 		];
 		wp_update_attachment_metadata($attachment_id, $metadata);
 

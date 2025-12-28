@@ -1,85 +1,6 @@
 (function(){
   function ready(fn){ if(document.readyState !== 'loading'){ fn(); } else { document.addEventListener('DOMContentLoaded', fn); } }
 
-  /**
-   * Scale a pixel art image using nearest-neighbor interpolation via Canvas.
-   * This bypasses any server-side image processing.
-   * @param {HTMLImageElement} img - Original image element
-   * @param {number} targetSize - Target width/height
-   * @returns {HTMLCanvasElement} - Canvas with scaled image
-   */
-  function scalePixelArt(img, targetSize) {
-    var canvas = document.createElement('canvas');
-    canvas.width = targetSize;
-    canvas.height = targetSize;
-
-    var ctx = canvas.getContext('2d');
-    // Disable smoothing for nearest-neighbor scaling
-    ctx.imageSmoothingEnabled = false;
-    ctx.mozImageSmoothingEnabled = false;
-    ctx.webkitImageSmoothingEnabled = false;
-    ctx.msImageSmoothingEnabled = false;
-
-    // Draw the small image scaled up
-    ctx.drawImage(img, 0, 0, targetSize, targetSize);
-
-    return canvas;
-  }
-
-  /**
-   * Process punk images on the page - replace with canvas-scaled versions
-   */
-  function processPunkImages() {
-    // Find all punk images that need canvas scaling
-    var punkImages = document.querySelectorAll('.sbpr-single__img, .sbpr-index__img, .sbpr-tile__img');
-
-    punkImages.forEach(function(img) {
-      // Skip if already processed
-      if (img.dataset.sbprProcessed) return;
-
-      // Skip if not a punk image
-      if (!img.src || img.src.indexOf('punk-') === -1) return;
-
-      // Mark as being processed
-      img.dataset.sbprProcessed = 'pending';
-
-      // Create a new image to load the original
-      var tempImg = new Image();
-      tempImg.crossOrigin = 'anonymous';
-
-      tempImg.onload = function() {
-        // Determine target size based on container
-        var container = img.parentElement;
-        var targetSize = Math.min(480, Math.max(container.offsetWidth || 480, 96));
-        // Round to nearest multiple of original size for perfect scaling
-        var srcSize = tempImg.naturalWidth || 24;
-        var scale = Math.max(1, Math.round(targetSize / srcSize));
-        targetSize = srcSize * scale;
-
-        // Create scaled canvas
-        var canvas = scalePixelArt(tempImg, targetSize);
-
-        // Replace img with canvas
-        canvas.className = img.className;
-        canvas.style.width = '100%';
-        canvas.style.height = 'auto';
-        canvas.dataset.sbprProcessed = 'done';
-
-        // Copy any relevant attributes
-        if (img.alt) canvas.setAttribute('aria-label', img.alt);
-
-        img.parentElement.replaceChild(canvas, img);
-      };
-
-      tempImg.onerror = function() {
-        // If canvas approach fails, keep the original img
-        img.dataset.sbprProcessed = 'failed';
-      };
-
-      tempImg.src = img.src;
-    });
-  }
-
   function uniquePositionsStratified(total, n){
     // Pick ~evenly distributed positions across [0,total) by taking 1 from each segment.
     const chosen = new Set();
@@ -204,10 +125,5 @@
       t = setTimeout(function(){ buildGrid(grid); }, 150);
     });
 
-    // Process punk images for crisp pixel art rendering
-    processPunkImages();
-
-    // Also process after any async image loads
-    window.addEventListener('load', processPunkImages);
   });
 })();
