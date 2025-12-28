@@ -47,7 +47,7 @@ if ($acquisition_type === 'purchase') $label_type = 'MUSEUM PURCHASE';
 
 $img_url = '';
 if (has_post_thumbnail($post_id)) {
-	$img_url = (string)get_the_post_thumbnail_url($post_id, 'large');
+	$img_url = (string)get_the_post_thumbnail_url($post_id, 'full');
 } else {
 	// Try first image in content as fallback.
 	$content_raw = (string)get_post_field('post_content', $post_id);

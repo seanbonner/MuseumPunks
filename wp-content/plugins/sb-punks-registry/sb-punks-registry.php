@@ -2,7 +2,7 @@
 /**
  * Plugin Name: SB Punks Registry
  * Description: MuseumPunks registry + front-page mosaic + numeric permalinks + single punk layout.
- * Version: 0.3.5
+ * Version: 0.3.6
  * Author: SB
  */
 
@@ -371,7 +371,7 @@ final class SB_Punks_Registry {
 
 			$thumb = '';
 			if (has_post_thumbnail($id)) {
-				$thumb = (string)get_the_post_thumbnail_url($id, 'large');
+				$thumb = (string)get_the_post_thumbnail_url($id, 'full');
 			} else {
 				$attached = get_attached_media('image', $id);
 				if (!empty($attached)) {
