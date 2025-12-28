@@ -11,11 +11,6 @@ $institution_name = $term->name;
 $institution_description = $term->description;
 $institution_url = get_term_meta($term->term_id, 'institution_url', true);
 
-// Get site logo from plugin settings
-$sbpr_settings = SB_Punks_Registry::get_settings();
-$logo_default = esc_url($sbpr_settings['logo_default_url']);
-$logo_hover = esc_url($sbpr_settings['logo_hover_url']);
-
 // Get all punks for this institution
 $punks = new WP_Query([
 	'post_type' => SB_Punks_Registry::PT,
@@ -32,19 +27,6 @@ $punks = new WP_Query([
 ]);
 
 ?>
-<header class="sbpr-single__header">
-	<a class="sbpr-logo" href="<?php echo esc_url(home_url('/')); ?>" aria-label="Home">
-		<?php if ($logo_default): ?>
-			<img class="sbpr-logo__img sbpr-logo__img--default" src="<?php echo $logo_default; ?>" alt="<?php echo esc_attr(get_bloginfo('name')); ?>" />
-		<?php else: ?>
-			<span class="sbpr-logo__text"><?php echo esc_html(get_bloginfo('name')); ?></span>
-		<?php endif; ?>
-		<?php if ($logo_hover): ?>
-			<img class="sbpr-logo__img sbpr-logo__img--hover" src="<?php echo $logo_hover; ?>" alt="" aria-hidden="true" />
-		<?php endif; ?>
-	</a>
-</header>
-
 <main id="primary" class="site-main sbpr-institution__main">
 	<div class="sbpr-institution__wrap">
 		<div class="sbpr-institution__header">

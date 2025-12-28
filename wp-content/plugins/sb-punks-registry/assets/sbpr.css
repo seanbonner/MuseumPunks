@@ -1,6 +1,6 @@
-/* SB Punks Registry 0.5.4 */
+/* SB Punks Registry 0.5.5 */
 
-/* Front page, single punk, institution: kill theme header/nav/logo wrappers. */
+/* Front page: kill theme header/nav/logo wrappers. */
 .sbpr-front #wrapper-navbar,
 .sbpr-front header#masthead,
 .sbpr-front #masthead,
@@ -17,41 +17,7 @@
 .sbpr-front .main-navigation,
 .sbpr-front .wp-block-navigation,
 .sbpr-front .menu,
-.sbpr-front .navbar,
-.sbpr-single #wrapper-navbar,
-.sbpr-single header#masthead,
-.sbpr-single #masthead,
-.sbpr-single .site-header,
-.sbpr-single .wp-site-blocks > header,
-.sbpr-single #page > header,
-.sbpr-single .header,
-.sbpr-single .header__row,
-.sbpr-single .header__brand,
-.sbpr-single .site-branding,
-.sbpr-single .custom-logo-link,
-.sbpr-single nav,
-.sbpr-single .primary-navigation,
-.sbpr-single .main-navigation,
-.sbpr-single .wp-block-navigation,
-.sbpr-single .menu,
-.sbpr-single .navbar,
-.sbpr-institution #wrapper-navbar,
-.sbpr-institution header#masthead,
-.sbpr-institution #masthead,
-.sbpr-institution .site-header,
-.sbpr-institution .wp-site-blocks > header,
-.sbpr-institution #page > header,
-.sbpr-institution .header,
-.sbpr-institution .header__row,
-.sbpr-institution .header__brand,
-.sbpr-institution .site-branding,
-.sbpr-institution .custom-logo-link,
-.sbpr-institution nav,
-.sbpr-institution .primary-navigation,
-.sbpr-institution .main-navigation,
-.sbpr-institution .wp-block-navigation,
-.sbpr-institution .menu,
-.sbpr-institution .navbar { display:none !important; }
+.sbpr-front .navbar { display:none !important; }
 
 /* Remove width constraints on front page and bleed full-width. */
 .sbpr-front .site,
@@ -202,17 +168,6 @@
 /* =======================
    SBPR: single punk page
 ======================= */
-
-/* Single page header with logo */
-.sbpr-single__header {
-  padding: clamp(18px, 3vw, 32px) clamp(24px, 4vw, 56px);
-}
-
-.sbpr-single__header .sbpr-logo__img {
-  max-width: min(400px, 60vw);
-  height: auto;
-}
-
 .sbpr-single .site-main.sbpr-single__main{
   max-width: none;
   padding: 0;

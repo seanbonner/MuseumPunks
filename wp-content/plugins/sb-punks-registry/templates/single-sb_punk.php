@@ -12,11 +12,6 @@ $post_id = get_the_ID();
 $punk_num = get_the_title($post_id);
 $punk_num_clean = preg_replace('/[^0-9]/', '', (string)$punk_num);
 
-// Get site logo from plugin settings
-$sbpr_settings = SB_Punks_Registry::get_settings();
-$logo_default = esc_url($sbpr_settings['logo_default_url']);
-$logo_hover = esc_url($sbpr_settings['logo_hover_url']);
-
 // Institution (taxonomy) - link to taxonomy archive page
 $institution_name = '';
 $institution_url = '';
@@ -71,19 +66,6 @@ function sbpr_wallet_link($wallet, $name = '') {
 }
 
 ?>
-<header class="sbpr-single__header">
-	<a class="sbpr-logo" href="<?php echo esc_url(home_url('/')); ?>" aria-label="Home">
-		<?php if ($logo_default): ?>
-			<img class="sbpr-logo__img sbpr-logo__img--default" src="<?php echo $logo_default; ?>" alt="<?php echo esc_attr(get_bloginfo('name')); ?>" />
-		<?php else: ?>
-			<span class="sbpr-logo__text"><?php echo esc_html(get_bloginfo('name')); ?></span>
-		<?php endif; ?>
-		<?php if ($logo_hover): ?>
-			<img class="sbpr-logo__img sbpr-logo__img--hover" src="<?php echo $logo_hover; ?>" alt="" aria-hidden="true" />
-		<?php endif; ?>
-	</a>
-</header>
-
 <main id="primary" class="site-main sbpr-single__main">
 	<div class="sbpr-single__wrap">
 		<div class="sbpr-single__media">
