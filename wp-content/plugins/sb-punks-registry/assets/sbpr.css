@@ -1,4 +1,4 @@
-/* SB Punks Registry 0.5.0 */
+/* SB Punks Registry 0.5.1 */
 
 /* Front page: kill theme header/nav/logo wrappers. */
 .sbpr-front header#masthead,
@@ -156,6 +156,17 @@
 /* =======================
    SBPR: single punk page
 ======================= */
+
+/* Single page header with logo */
+.sbpr-single__header {
+  padding: clamp(18px, 3vw, 32px) clamp(24px, 4vw, 56px);
+}
+
+.sbpr-single__header .sbpr-logo__img {
+  max-width: min(400px, 60vw);
+  height: auto;
+}
+
 .sbpr-single .site-main.sbpr-single__main{
   max-width: none;
   padding: 0;
@@ -268,4 +279,56 @@
   order: 3;
 }
 
+
+/* =======================
+   SBPR: Institution archive
+======================= */
+.sbpr-institution__main {
+  max-width: none;
+  padding: 0;
+}
+
+.sbpr-institution__wrap {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 clamp(24px, 4vw, 56px) clamp(32px, 5vw, 64px);
+}
+
+.sbpr-institution__header {
+  margin-bottom: clamp(24px, 4vw, 48px);
+}
+
+.sbpr-institution__name {
+  font-size: clamp(36px, 6vw, 72px);
+  line-height: 1;
+  margin: 0 0 12px;
+  letter-spacing: -0.02em;
+}
+
+.sbpr-institution__link {
+  margin: 0 0 16px;
+  font-size: 18px;
+}
+
+.sbpr-institution__link a {
+  color: inherit;
+  text-decoration: underline;
+}
+
+.sbpr-institution__desc {
+  font-size: 16px;
+  line-height: 1.6;
+  max-width: 700px;
+  margin-bottom: 16px;
+}
+
+.sbpr-institution__desc p:last-child {
+  margin-bottom: 0;
+}
+
+.sbpr-institution__count {
+  font-size: 14px;
+  opacity: 0.7;
+  margin: 0;
+}
 
