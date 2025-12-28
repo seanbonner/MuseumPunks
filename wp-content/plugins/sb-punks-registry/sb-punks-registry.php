@@ -2,7 +2,7 @@
 /**
  * Plugin Name: SB Punks Registry
  * Description: MuseumPunks registry + front-page mosaic + numeric permalinks + single punk layout.
- * Version: 0.3.2
+ * Version: 0.3.3
  * Author: SB
  */
 
@@ -682,40 +682,53 @@ final class SB_Punks_Registry {
 		$src_h = imagesy($src);
 		$scale = (int)($target_size / $src_w); // Integer scale factor (e.g., 20 for 24->480)
 
-		// Create paletted destination to match source exactly
-		$dst = imagecreate($target_size, $target_size);
+		// Create truecolor destination for proper alpha support
+		$dst = imagecreatetruecolor($target_size, $target_size);
 		if ($dst === false) {
 			imagedestroy($src);
 			return '';
 		}
 
-		// Copy palette from source to destination
-		$num_colors = imagecolorstotal($src);
-		for ($i = 0; $i < $num_colors; $i++) {
-			$colors = imagecolorsforindex($src, $i);
-			imagecolorallocatealpha($dst, $colors['red'], $colors['green'], $colors['blue'], $colors['alpha']);
-		}
+		// Disable blending and enable alpha save
+		imagealphablending($dst, false);
+		imagesavealpha($dst, true);
 
-		// Handle transparency
-		$trans_idx = imagecolortransparent($src);
-		if ($trans_idx >= 0) {
-			imagecolortransparent($dst, $trans_idx);
-		}
+		// Fill with fully transparent background
+		$transparent = imagecolorallocatealpha($dst, 0, 0, 0, 127);
+		imagefill($dst, 0, 0, $transparent);
+
+		// Build a color cache to avoid repeated allocations
+		$color_cache = [];
 
 		// Scale by copying each source pixel as a block
 		for ($sy = 0; $sy < $src_h; $sy++) {
 			for ($sx = 0; $sx < $src_w; $sx++) {
-				$color = imagecolorat($src, $sx, $sy);
+				$src_color = imagecolorat($src, $sx, $sy);
+
+				// Get RGBA from source (works for both palette and truecolor)
+				$rgba = imagecolorsforindex($src, $src_color);
+				$cache_key = $rgba['red'] . ',' . $rgba['green'] . ',' . $rgba['blue'] . ',' . $rgba['alpha'];
+
+				if (!isset($color_cache[$cache_key])) {
+					$color_cache[$cache_key] = imagecolorallocatealpha(
+						$dst,
+						$rgba['red'],
+						$rgba['green'],
+						$rgba['blue'],
+						$rgba['alpha']
+					);
+				}
+				$dst_color = $color_cache[$cache_key];
 
 				// Draw a scale x scale block for this pixel
 				$dx = $sx * $scale;
 				$dy = $sy * $scale;
-				imagefilledrectangle($dst, $dx, $dy, $dx + $scale - 1, $dy + $scale - 1, $color);
+				imagefilledrectangle($dst, $dx, $dy, $dx + $scale - 1, $dy + $scale - 1, $dst_color);
 			}
 		}
 
 		ob_start();
-		imagepng($dst, null, 9); // Max compression
+		imagepng($dst, null, 9);
 		$result = ob_get_clean();
 
 		imagedestroy($src);
