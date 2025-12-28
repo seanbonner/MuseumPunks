@@ -2,7 +2,7 @@
 /**
  * Plugin Name: SB Punks Registry
  * Description: MuseumPunks registry + front-page mosaic + numeric permalinks + single punk layout.
- * Version: 0.3.3
+ * Version: 0.3.4
  * Author: SB
  */
 
@@ -739,6 +739,7 @@ final class SB_Punks_Registry {
 
 	/**
 	 * Generate punk image and set as featured image
+	 * Bypasses WordPress image processing to preserve pixel-perfect scaling
 	 */
 	public static function generate_punk_image(int $post_id, int $punk_id) : bool {
 		// Don't regenerate if featured image already exists
@@ -752,39 +753,47 @@ final class SB_Punks_Registry {
 			return false;
 		}
 
-		// Save to temp file
-		$tmp_file = wp_tempnam('punk_') . '.png';
-		if (file_put_contents($tmp_file, $image_data) === false) {
-			error_log('SBPR: Could not write temp file for punk ' . $punk_id);
+		// Get uploads directory
+		$upload_dir = wp_upload_dir();
+		if (!empty($upload_dir['error'])) {
+			error_log('SBPR: Upload dir error - ' . $upload_dir['error']);
 			return false;
 		}
 
 		$filename = 'punk-' . $punk_id . '.png';
+		$file_path = $upload_dir['path'] . '/' . $filename;
+		$file_url = $upload_dir['url'] . '/' . $filename;
 
-		// Upload to media library
-		$file_array = [
-			'name' => $filename,
-			'tmp_name' => $tmp_file,
-		];
-
-		// Need to include media handling functions
-		if (!function_exists('media_handle_sideload')) {
-			require_once ABSPATH . 'wp-admin/includes/image.php';
-			require_once ABSPATH . 'wp-admin/includes/file.php';
-			require_once ABSPATH . 'wp-admin/includes/media.php';
-		}
-
-		$attachment_id = media_handle_sideload($file_array, $post_id, 'CryptoPunk #' . $punk_id);
-
-		// Clean up temp file if still exists
-		if (file_exists($tmp_file)) {
-			@unlink($tmp_file);
-		}
-
-		if (is_wp_error($attachment_id)) {
-			error_log('SBPR: Failed to upload punk image - ' . $attachment_id->get_error_message());
+		// Write file directly to uploads folder
+		if (file_put_contents($file_path, $image_data) === false) {
+			error_log('SBPR: Could not write file for punk ' . $punk_id);
 			return false;
 		}
+
+		// Create attachment post manually (bypasses wp_generate_attachment_metadata)
+		$attachment = [
+			'post_mime_type' => 'image/png',
+			'post_title'     => 'CryptoPunk #' . $punk_id,
+			'post_content'   => '',
+			'post_status'    => 'inherit',
+			'guid'           => $file_url,
+		];
+
+		$attachment_id = wp_insert_attachment($attachment, $file_path, $post_id);
+		if (is_wp_error($attachment_id) || !$attachment_id) {
+			error_log('SBPR: Failed to create attachment for punk ' . $punk_id);
+			@unlink($file_path);
+			return false;
+		}
+
+		// Set minimal metadata without triggering image processing
+		$metadata = [
+			'width'  => 480,
+			'height' => 480,
+			'file'   => $upload_dir['subdir'] . '/' . $filename,
+			'sizes'  => [], // No thumbnails
+		];
+		wp_update_attachment_metadata($attachment_id, $metadata);
 
 		// Set as featured image
 		set_post_thumbnail($post_id, $attachment_id);
