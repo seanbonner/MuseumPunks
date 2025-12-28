@@ -12,15 +12,26 @@ $post_id = get_the_ID();
 $punk_num = get_the_title($post_id);
 $punk_num_clean = preg_replace('/[^0-9]/', '', (string)$punk_num);
 
-// Museum meta
-$museum_name       = (string)get_post_meta($post_id, SB_Punks_Registry::META_MUSEUM_NAME, true);
-$museum_url        = (string)get_post_meta($post_id, SB_Punks_Registry::META_MUSEUM_URL, true);
+// Institution (taxonomy)
+$institution_name = '';
+$institution_url = '';
+$institutions = get_the_terms($post_id, SB_Punks_Registry::TAX_INSTITUTION);
+if ($institutions && !is_wp_error($institutions)) {
+	$inst = $institutions[0]; // Use first institution
+	$institution_name = $inst->name;
+	// Check for custom URL in term meta, fallback to archive link
+	$custom_url = get_term_meta($inst->term_id, 'institution_url', true);
+	$institution_url = $custom_url ? $custom_url : get_term_link($inst);
+}
+
+// Other meta
 $museum_wallet     = (string)get_post_meta($post_id, SB_Punks_Registry::META_MUSEUM_WALLET, true);
 $acquisition_date  = (string)get_post_meta($post_id, SB_Punks_Registry::META_ACQUISITION_DATE, true);
 $announcement_url  = (string)get_post_meta($post_id, SB_Punks_Registry::META_ANNOUNCEMENT_URL, true);
 $acquisition_type  = (string)get_post_meta($post_id, SB_Punks_Registry::META_ACQUISITION_TYPE, true);
 $donor_name        = (string)get_post_meta($post_id, SB_Punks_Registry::META_DONOR_NAME, true);
 $donor_url         = (string)get_post_meta($post_id, SB_Punks_Registry::META_DONOR_URL, true);
+$v1_wrapped        = (string)get_post_meta($post_id, SB_Punks_Registry::META_V1_WRAPPED, true);
 
 // Format acquisition date for display
 $acq_human = '';
@@ -71,14 +82,14 @@ function sbpr_wallet_link($wallet, $name = '') {
 			<div class="sbpr-single__label"><?php echo esc_html($label_type); ?></div>
 
 			<dl class="sbpr-single__facts">
-				<?php if ($museum_name): ?>
+				<?php if ($institution_name): ?>
 					<div class="sbpr-single__fact">
-						<dt>Museum:</dt>
+						<dt>Institution:</dt>
 						<dd>
-							<?php if ($museum_url): ?>
-								<a href="<?php echo esc_url($museum_url); ?>"><?php echo esc_html($museum_name); ?></a>
+							<?php if ($institution_url): ?>
+								<a href="<?php echo esc_url($institution_url); ?>"><?php echo esc_html($institution_name); ?></a>
 							<?php else: ?>
-								<?php echo esc_html($museum_name); ?>
+								<?php echo esc_html($institution_name); ?>
 							<?php endif; ?>
 						</dd>
 					</div>
@@ -119,10 +130,21 @@ function sbpr_wallet_link($wallet, $name = '') {
 
 				<?php if ($museum_wallet): ?>
 					<div class="sbpr-single__fact">
-						<dt>Museum Wallet:</dt>
+						<dt>Wallet:</dt>
 						<dd><?php echo sbpr_wallet_link($museum_wallet); ?></dd>
 					</div>
 				<?php endif; ?>
+
+				<div class="sbpr-single__fact">
+					<dt>V1:</dt>
+					<dd>
+						<?php if ($v1_wrapped === '1'): ?>
+							<a href="<?php echo SB_Punks_Registry::os_wrapped_url($punk_num_clean); ?>">Wrapped</a>
+						<?php else: ?>
+							Unwrapped
+						<?php endif; ?>
+					</dd>
+				</div>
 			</dl></div>
 
 		<div class="sbpr-single__story sbpr-single__story--full">

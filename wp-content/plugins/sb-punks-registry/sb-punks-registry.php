@@ -2,7 +2,7 @@
 /**
  * Plugin Name: SB Punks Registry
  * Description: MuseumPunks registry + front-page mosaic + numeric permalinks + single punk layout.
- * Version: 0.2.4
+ * Version: 0.3.0
  * Author: SB
  */
 
@@ -10,25 +10,29 @@ if (!defined('ABSPATH')) exit;
 
 final class SB_Punks_Registry {
 	const PT = 'sb_punk';
+	const TAX_INSTITUTION = 'sb_institution';
 	const OPT_KEY = 'sb_punks_registry_settings';
 
 	// CryptoPunks site helpers
 	const CP_DETAILS_BASE = 'https://cryptopunks.app/cryptopunks/details/';
 	const CP_ACCOUNT_BASE = 'https://cryptopunks.app/cryptopunks/accountinfo?account=';
 
+	// OpenSea V1 Wrapped Punks
+	const OS_WRAPPED_BASE = 'https://opensea.io/assets/ethereum/0x282bdd42f4eb70e7a9d9f40c8fea0825b7f68c5d/';
+
 	// Meta keys for MuseumPunks
 	const META_PUNK_ID            = '_sbpr_punk_id';           // 0-9999 (kept in sync with title/slug)
-	const META_MUSEUM_NAME        = '_sbpr_museum_name';       // Museum name
-	const META_MUSEUM_URL         = '_sbpr_museum_url';        // Museum website URL
 	const META_ACQUISITION_DATE   = '_sbpr_acquisition_date';  // YYYY-MM-DD
 	const META_ANNOUNCEMENT_URL   = '_sbpr_announcement_url';  // Acquisition announcement URL
 	const META_MUSEUM_WALLET      = '_sbpr_museum_wallet';     // Wallet address
 	const META_ACQUISITION_TYPE   = '_sbpr_acquisition_type';  // donation|purchase
 	const META_DONOR_NAME         = '_sbpr_donor_name';        // If donated, donor name
 	const META_DONOR_URL          = '_sbpr_donor_url';         // If donated, donor URL
+	const META_V1_WRAPPED         = '_sbpr_v1_wrapped';        // '1'|'0' - is the V1 wrapped?
 
 	public static function init() : void {
 		add_action('init', [__CLASS__, 'register_cpt']);
+		add_action('init', [__CLASS__, 'register_taxonomy']);
 		add_action('init', [__CLASS__, 'register_rewrites'], 20);
 		add_filter('query_vars', [__CLASS__, 'register_query_vars']);
 		add_filter('template_include', [__CLASS__, 'template_override'], 50);
@@ -58,12 +62,19 @@ final class SB_Punks_Registry {
 		add_action('add_meta_boxes', [__CLASS__, 'add_meta_boxes']);
 		add_action('save_post_' . self::PT, [__CLASS__, 'save_meta'], 10, 3);
 
+		// Institution taxonomy custom fields
+		add_action(self::TAX_INSTITUTION . '_add_form_fields', [__CLASS__, 'institution_add_fields']);
+		add_action(self::TAX_INSTITUTION . '_edit_form_fields', [__CLASS__, 'institution_edit_fields'], 10);
+		add_action('created_' . self::TAX_INSTITUTION, [__CLASS__, 'save_institution_fields']);
+		add_action('edited_' . self::TAX_INSTITUTION, [__CLASS__, 'save_institution_fields']);
+
 		// Disable thumbnail generation for punk images to preserve crisp pixels
 		add_filter('intermediate_image_sizes_advanced', [__CLASS__, 'skip_punk_thumbnails'], 10, 3);
 	}
 
 	public static function activate() : void {
 		self::register_cpt();
+		self::register_taxonomy();
 		self::register_rewrites();
 		flush_rewrite_rules();
 	}
@@ -131,7 +142,62 @@ final class SB_Punks_Registry {
 			'supports' => ['title','editor','thumbnail','revisions'],
 			'rewrite' => false,
 			'query_var' => 'sb_punk',
+			'taxonomies' => [self::TAX_INSTITUTION],
 		]);
+	}
+
+	public static function register_taxonomy() : void {
+		register_taxonomy(self::TAX_INSTITUTION, self::PT, [
+			'labels' => [
+				'name' => 'Institutions',
+				'singular_name' => 'Institution',
+				'search_items' => 'Search Institutions',
+				'all_items' => 'All Institutions',
+				'edit_item' => 'Edit Institution',
+				'update_item' => 'Update Institution',
+				'add_new_item' => 'Add New Institution',
+				'new_item_name' => 'New Institution Name',
+				'menu_name' => 'Institutions',
+			],
+			'hierarchical' => false,
+			'public' => true,
+			'show_ui' => true,
+			'show_admin_column' => true,
+			'show_in_rest' => false,
+			'rewrite' => ['slug' => 'institution', 'with_front' => false],
+			'query_var' => 'institution',
+		]);
+	}
+
+	// Institution taxonomy custom fields
+	public static function institution_add_fields() : void {
+		?>
+		<div class="form-field">
+			<label for="institution_url">Website URL</label>
+			<input type="url" name="institution_url" id="institution_url" value="" />
+			<p class="description">The institution's website (e.g., https://moma.org)</p>
+		</div>
+		<?php
+	}
+
+	public static function institution_edit_fields($term) : void {
+		$url = get_term_meta($term->term_id, 'institution_url', true);
+		?>
+		<tr class="form-field">
+			<th scope="row"><label for="institution_url">Website URL</label></th>
+			<td>
+				<input type="url" name="institution_url" id="institution_url" value="<?php echo esc_attr($url); ?>" />
+				<p class="description">The institution's website (e.g., https://moma.org)</p>
+			</td>
+		</tr>
+		<?php
+	}
+
+	public static function save_institution_fields($term_id) : void {
+		if (isset($_POST['institution_url'])) {
+			$url = esc_url_raw($_POST['institution_url']);
+			update_term_meta($term_id, 'institution_url', $url);
+		}
 	}
 
 	public static function register_rewrites() : void {
@@ -362,6 +428,11 @@ final class SB_Punks_Registry {
 		return esc_url(self::CP_ACCOUNT_BASE . $w);
 	}
 
+	public static function os_wrapped_url($punk_num) : string {
+		$n = preg_replace('/[^0-9]/', '', (string)$punk_num);
+		return esc_url(self::OS_WRAPPED_BASE . $n);
+	}
+
 	public static function extract_story_html($content) : string {
 		$content = (string)$content;
 		if (!$content) return '';
@@ -451,7 +522,7 @@ final class SB_Punks_Registry {
 
 	public static function add_meta_boxes() : void {
 		add_meta_box('sbpr_meta', 'Punk Details', [__CLASS__, 'render_meta_box'], self::PT, 'side', 'high');
-		add_meta_box('sbpr_museum', 'Museum Info', [__CLASS__, 'render_museum_box'], self::PT, 'normal', 'high');
+		add_meta_box('sbpr_wallet', 'Wallet Info', [__CLASS__, 'render_wallet_box'], self::PT, 'normal', 'high');
 		add_meta_box('sbpr_acquisition', 'Acquisition Details', [__CLASS__, 'render_acquisition_box'], self::PT, 'normal', 'default');
 	}
 
@@ -468,23 +539,31 @@ final class SB_Punks_Registry {
 		wp_nonce_field('sbpr_save_meta', 'sbpr_nonce');
 
 		$punk_id = (string)get_post_meta($post->ID, self::META_PUNK_ID, true);
+		$v1_wrapped = (string)get_post_meta($post->ID, self::META_V1_WRAPPED, true);
 
 		?>
 		<p>
 			<label for="sbpr_punk_id"><strong>Punk #</strong></label><br/>
 			<input type="number" min="0" max="9999" id="sbpr_punk_id" name="sbpr_punk_id" value="<?php echo esc_attr($punk_id); ?>" style="width:100%;" />
 		</p>
+		<p>
+			<label for="sbpr_v1_wrapped"><strong>V1 Wrapped?</strong></label><br/>
+			<select id="sbpr_v1_wrapped" name="sbpr_v1_wrapped" style="width:100%;">
+				<option value="0" <?php selected($v1_wrapped, '0'); ?>>No (Unwrapped)</option>
+				<option value="1" <?php selected($v1_wrapped, '1'); ?>>Yes (Wrapped)</option>
+			</select>
+			<span class="description">If wrapped, shows OpenSea link</span>
+		</p>
 		<?php
 	}
 
-	public static function render_museum_box($post) : void {
-		$museum_name   = (string)get_post_meta($post->ID, self::META_MUSEUM_NAME, true);
-		$museum_url    = (string)get_post_meta($post->ID, self::META_MUSEUM_URL, true);
+	public static function render_wallet_box($post) : void {
 		$museum_wallet = (string)get_post_meta($post->ID, self::META_MUSEUM_WALLET, true);
 
-		self::field_row('Museum Name', 'sbpr_museum_name', $museum_name, 'Museum of Modern Art');
-		self::field_row('Museum Website URL', 'sbpr_museum_url', $museum_url, 'https://moma.org');
-		self::field_row('Museum Wallet', 'sbpr_museum_wallet', $museum_wallet, '0x...');
+		?>
+		<p class="description" style="margin-top:0;">Institution is set via the "Institutions" taxonomy (see sidebar or below). Add wallet address here:</p>
+		<?php
+		self::field_row('Institution Wallet', 'sbpr_museum_wallet', $museum_wallet, '0x...');
 	}
 
 	public static function render_acquisition_box($post) : void {
@@ -721,13 +800,12 @@ final class SB_Punks_Registry {
 			}
 		}
 
-		// Museum info
-		$museum_name = isset($_POST['sbpr_museum_name']) ? sanitize_text_field((string)$_POST['sbpr_museum_name']) : '';
-		$museum_url = isset($_POST['sbpr_museum_url']) ? esc_url_raw((string)$_POST['sbpr_museum_url']) : '';
-		$museum_wallet = isset($_POST['sbpr_museum_wallet']) ? sanitize_text_field((string)$_POST['sbpr_museum_wallet']) : '';
+		// V1 Wrapped status
+		$v1_wrapped = isset($_POST['sbpr_v1_wrapped']) ? ((string)$_POST['sbpr_v1_wrapped'] === '1' ? '1' : '0') : '0';
+		update_post_meta($post_id, self::META_V1_WRAPPED, $v1_wrapped);
 
-		update_post_meta($post_id, self::META_MUSEUM_NAME, $museum_name);
-		update_post_meta($post_id, self::META_MUSEUM_URL, $museum_url);
+		// Wallet info
+		$museum_wallet = isset($_POST['sbpr_museum_wallet']) ? sanitize_text_field((string)$_POST['sbpr_museum_wallet']) : '';
 		if ($museum_wallet) update_post_meta($post_id, self::META_MUSEUM_WALLET, strtolower($museum_wallet));
 
 		// Acquisition details

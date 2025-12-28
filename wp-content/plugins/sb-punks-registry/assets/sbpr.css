@@ -79,14 +79,14 @@
   .sbpr-mosaic__grid { padding: 0 18px 18px; gap: 5px; }
 }
 
-/* Tiles + empty cells share the same grey block feel */
+/* Tiles + empty cells */
 .sbpr-tile,
 .sbpr-emptycell {
   display:block;
   width: var(--sbpr-tile, 96px);
   height: var(--sbpr-tile, 96px);
   overflow:hidden;
-  background: rgba(0,0,0,.08);
+  background: #638596; /* Classic CryptoPunks blue-grey */
 }
 
 .sbpr-tile__img {
@@ -95,11 +95,7 @@
   display:block;
   object-fit:cover;
   image-rendering: pixelated;
-  filter: grayscale(100%);
-  opacity: .7;
-  transition: filter .08s ease, opacity .08s ease;
 }
-.sbpr-tile:hover .sbpr-tile__img { filter:none; opacity: 1; }
 
 /* Punks index page: 4 wide, big, full color */
 .sbpr-index {
@@ -116,7 +112,7 @@
 @media (max-width: 520px){
   .sbpr-index { grid-template-columns: repeat(2, 1fr); }
 }
-.sbpr-index__card { position:relative; display:block; background:#fff; border:1px solid rgba(0,0,0,.12); }
+.sbpr-index__card { position:relative; display:block; background:#638596; border:1px solid rgba(0,0,0,.12); }
 .sbpr-index__img { width:100%; height:auto; display:block; image-rendering: pixelated; }
 .sbpr-index__ph { display:block; aspect-ratio: 1 / 1; background: rgba(0,0,0,.08); }
 .sbpr-index__num {
@@ -174,7 +170,7 @@
 
 .sbpr-single__imglink{
   display: block;
-  background: #8aa0ad; /* soft blue-grey like CP bg */
+  background: #638596; /* Classic CryptoPunks blue-grey */
   padding: clamp(10px, 2vw, 18px);
 }
 
@@ -182,15 +178,6 @@
   width: 100%;
   height: auto;
   image-rendering: pixelated;
-  filter: grayscale(100%);
-  opacity: 0.7;
-  transition: filter 120ms linear, opacity 120ms linear;
-}
-
-.sbpr-single__imglink:hover .sbpr-single__img,
-.sbpr-single__imglink:focus .sbpr-single__img{
-  filter: none;
-  opacity: 1;
 }
 
 .sbpr-single__num{
@@ -243,13 +230,14 @@
   margin: 0 0 12px;
 }
 
-/* Mobile: image first, then text */
+/* Mobile: image first, then text, then story */
 @media (max-width: 800px){
   .sbpr-single__wrap{
     grid-template-columns: 1fr;
   }
   .sbpr-single__media{ order: 1; }
   .sbpr-single__content{ order: 2; }
+  .sbpr-single__story--full{ order: 3; }
   .sbpr-single__fact{
     grid-template-columns: 120px 1fr;
   }
