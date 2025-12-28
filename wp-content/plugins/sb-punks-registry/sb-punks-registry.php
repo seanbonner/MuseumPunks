@@ -2,7 +2,7 @@
 /**
  * Plugin Name: SB Punks Registry
  * Description: MuseumPunks registry + front-page mosaic + numeric permalinks + single punk layout.
- * Version: 0.3.1
+ * Version: 0.3.2
  * Author: SB
  */
 
@@ -664,9 +664,9 @@ final class SB_Punks_Registry {
 
 	/**
 	 * Scale PNG image data using nearest-neighbor interpolation
+	 * Each source pixel becomes a scale x scale block in the destination
 	 */
 	private static function scale_image_nearest_neighbor(string $image_data, int $target_size) : string {
-		// Use GD for reliable nearest-neighbor scaling
 		if (!function_exists('imagecreatefromstring')) {
 			error_log('SBPR: GD not available for scaling');
 			return '';
@@ -680,59 +680,42 @@ final class SB_Punks_Registry {
 
 		$src_w = imagesx($src);
 		$src_h = imagesy($src);
+		$scale = (int)($target_size / $src_w); // Integer scale factor (e.g., 20 for 24->480)
 
-		// Create truecolor destination image
-		$dst = imagecreatetruecolor($target_size, $target_size);
+		// Create paletted destination to match source exactly
+		$dst = imagecreate($target_size, $target_size);
 		if ($dst === false) {
 			imagedestroy($src);
 			return '';
 		}
 
-		// Set up destination for alpha
-		imagealphablending($dst, false);
-		imagesavealpha($dst, true);
-
-		// Fill with transparent background
-		$transparent = imagecolorallocatealpha($dst, 0, 0, 0, 127);
-		imagefill($dst, 0, 0, $transparent);
-
-		// Convert source to truecolor if it's a palette image (for correct color reading)
-		if (!imageistruecolor($src)) {
-			$truecolor_src = imagecreatetruecolor($src_w, $src_h);
-			imagealphablending($truecolor_src, false);
-			imagesavealpha($truecolor_src, true);
-			imagecopy($truecolor_src, $src, 0, 0, 0, 0, $src_w, $src_h);
-			imagedestroy($src);
-			$src = $truecolor_src;
+		// Copy palette from source to destination
+		$num_colors = imagecolorstotal($src);
+		for ($i = 0; $i < $num_colors; $i++) {
+			$colors = imagecolorsforindex($src, $i);
+			imagecolorallocatealpha($dst, $colors['red'], $colors['green'], $colors['blue'], $colors['alpha']);
 		}
 
-		// Scale using nearest-neighbor (pixel-by-pixel copy)
-		$scale = $target_size / $src_w;
-		for ($y = 0; $y < $target_size; $y++) {
-			for ($x = 0; $x < $target_size; $x++) {
-				$src_x = (int)floor($x / $scale);
-				$src_y = (int)floor($y / $scale);
+		// Handle transparency
+		$trans_idx = imagecolortransparent($src);
+		if ($trans_idx >= 0) {
+			imagecolortransparent($dst, $trans_idx);
+		}
 
-				// Clamp to source bounds
-				$src_x = min($src_x, $src_w - 1);
-				$src_y = min($src_y, $src_h - 1);
+		// Scale by copying each source pixel as a block
+		for ($sy = 0; $sy < $src_h; $sy++) {
+			for ($sx = 0; $sx < $src_w; $sx++) {
+				$color = imagecolorat($src, $sx, $sy);
 
-				$color = imagecolorat($src, $src_x, $src_y);
-
-				// Extract RGBA components
-				$a = ($color >> 24) & 0x7F;
-				$r = ($color >> 16) & 0xFF;
-				$g = ($color >> 8) & 0xFF;
-				$b = $color & 0xFF;
-
-				// Allocate exact color in destination
-				$dst_color = imagecolorallocatealpha($dst, $r, $g, $b, $a);
-				imagesetpixel($dst, $x, $y, $dst_color);
+				// Draw a scale x scale block for this pixel
+				$dx = $sx * $scale;
+				$dy = $sy * $scale;
+				imagefilledrectangle($dst, $dx, $dy, $dx + $scale - 1, $dy + $scale - 1, $color);
 			}
 		}
 
 		ob_start();
-		imagepng($dst, null, 0); // 0 = no compression for speed, lossless anyway
+		imagepng($dst, null, 9); // Max compression
 		$result = ob_get_clean();
 
 		imagedestroy($src);
