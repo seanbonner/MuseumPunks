@@ -1,4 +1,4 @@
-/* SB Punks Registry 0.5.1 */
+/* SB Punks Registry 0.5.2 */
 
 /* Front page: kill theme header/nav/logo wrappers. */
 .sbpr-front header#masthead,
@@ -86,7 +86,16 @@
   width: var(--sbpr-tile, 96px);
   height: var(--sbpr-tile, 96px);
   overflow:hidden;
+  box-sizing: border-box;
+}
+
+.sbpr-tile {
   background: #638596; /* Classic CryptoPunks blue-grey */
+}
+
+.sbpr-emptycell {
+  background: #fff;
+  border: 1px solid #638596;
 }
 
 .sbpr-tile__img {
