@@ -136,19 +136,15 @@ function sbpr_wallet_link($wallet, $name = '') {
 				<?php endif; ?>
 
 				<div class="sbpr-single__fact">
-					<dt>V1:</dt>
+					<dt>V1 held by institution:</dt>
 					<dd>
+						<?php echo ($v1_held === '1') ? 'Yes' : 'No'; ?>
 						<?php if ($v1_wrapped === '1'): ?>
-							<a href="<?php echo SB_Punks_Registry::os_wrapped_url($punk_num_clean); ?>">Wrapped</a>
+							(<a href="<?php echo SB_Punks_Registry::os_wrapped_url($punk_num_clean); ?>">wrapped</a>)
 						<?php else: ?>
-							Unwrapped
+							(unwrapped)
 						<?php endif; ?>
 					</dd>
-				</div>
-
-				<div class="sbpr-single__fact">
-					<dt>V1 held by institution:</dt>
-					<dd><?php echo ($v1_held === '1') ? 'Yes' : 'No'; ?></dd>
 				</div>
 			</dl>
 		</div>
