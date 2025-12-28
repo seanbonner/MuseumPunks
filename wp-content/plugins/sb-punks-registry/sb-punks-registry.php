@@ -246,7 +246,7 @@ final class SB_Punks_Registry {
 	}
 
 	public static function enqueue_assets() : void {
-		$ver = '0.3.8';
+		$ver = '0.3.9';
 		wp_enqueue_style('sbpr', plugins_url('assets/sbpr.css', __FILE__), [], $ver);
 		wp_enqueue_script('sbpr', plugins_url('assets/sbpr.js', __FILE__), [], $ver, true);
 	}
@@ -689,41 +689,27 @@ final class SB_Punks_Registry {
 			return '';
 		}
 
-		// Disable blending and enable alpha save
+		// CRITICAL: Disable alpha blending so colors are written exactly
 		imagealphablending($dst, false);
 		imagesavealpha($dst, true);
 
-		// Fill with fully transparent background
-		$transparent = imagecolorallocatealpha($dst, 0, 0, 0, 127);
-		imagefill($dst, 0, 0, $transparent);
+		// Scale using pure pixel-by-pixel copy (no GD drawing functions)
+		for ($dy = 0; $dy < $target_size; $dy++) {
+			$sy = (int)($dy / $scale);
+			for ($dx = 0; $dx < $target_size; $dx++) {
+				$sx = (int)($dx / $scale);
 
-		// Build a color cache to avoid repeated allocations
-		$color_cache = [];
-
-		// Scale by copying each source pixel as a block
-		for ($sy = 0; $sy < $src_h; $sy++) {
-			for ($sx = 0; $sx < $src_w; $sx++) {
+				// Get source pixel color index
 				$src_color = imagecolorat($src, $sx, $sy);
 
-				// Get RGBA from source (works for both palette and truecolor)
+				// Get RGBA components
 				$rgba = imagecolorsforindex($src, $src_color);
-				$cache_key = $rgba['red'] . ',' . $rgba['green'] . ',' . $rgba['blue'] . ',' . $rgba['alpha'];
 
-				if (!isset($color_cache[$cache_key])) {
-					$color_cache[$cache_key] = imagecolorallocatealpha(
-						$dst,
-						$rgba['red'],
-						$rgba['green'],
-						$rgba['blue'],
-						$rgba['alpha']
-					);
-				}
-				$dst_color = $color_cache[$cache_key];
+				// Create color with exact RGBA values
+				$dst_color = ($rgba['alpha'] << 24) | ($rgba['red'] << 16) | ($rgba['green'] << 8) | $rgba['blue'];
 
-				// Draw a scale x scale block for this pixel
-				$dx = $sx * $scale;
-				$dy = $sy * $scale;
-				imagefilledrectangle($dst, $dx, $dy, $dx + $scale - 1, $dy + $scale - 1, $dst_color);
+				// Set pixel directly
+				imagesetpixel($dst, $dx, $dy, $dst_color);
 			}
 		}
 
