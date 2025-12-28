@@ -376,7 +376,7 @@ final class SB_Punks_Registry {
 				$attached = get_attached_media('image', $id);
 				if (!empty($attached)) {
 					$first = reset($attached);
-					$thumb = $first ? wp_get_attachment_image_url($first->ID, 'large') : '';
+					$thumb = $first ? wp_get_attachment_image_url($first->ID, 'full') : '';
 				}
 			}
 
