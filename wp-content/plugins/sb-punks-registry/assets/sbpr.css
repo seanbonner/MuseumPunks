@@ -1,4 +1,4 @@
-/* SB Punks Registry 0.4.1 */
+/* SB Punks Registry 0.4.2 */
 
 /* Front page: kill theme header/nav/logo wrappers. */
 .sbpr-front header#masthead,
@@ -136,6 +136,7 @@
 
 .sbpr-empty { padding: 24px; opacity: .7; text-align:center; }
 
+
 /* 0.1.12 hotfix: force logo LEFT (some themes center header content aggressively) */
 .sbpr-front .sbpr-header{
   width: 100vw !important;
@@ -150,6 +151,7 @@
   margin-left: 0 !important;
   margin-right: 0 !important;
 }
+
 
 /* =======================
    SBPR: single punk page
@@ -169,13 +171,29 @@
   align-items: start;
 }
 
-.sbpr-single__media{ order: 2; }
-.sbpr-single__content{ order: 1; }
+.sbpr-single__media{
+  order: 2;
+}
+
+.sbpr-single__content{
+  order: 1;
+}
 
 .sbpr-single__imglink{
   display: block;
   background: #638596; /* Classic CryptoPunks blue-grey */
   padding: clamp(10px, 2vw, 18px);
+}
+
+/* IMPORTANT: canvases need an explicit aspect ratio or they'll stretch */
+.sbpr-single__img.sbpr-pixelcanvas{
+  display:block;
+  width:100%;
+  height:auto;
+  aspect-ratio: 1 / 1;
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
 }
 
 .sbpr-single__img{
@@ -215,53 +233,72 @@
   align-items: baseline;
 }
 
-.sbpr-single__facts dt{ font-weight: 800; }
-.sbpr-single__facts dd{ margin: 0; }
-.sbpr-single__burned{ color: #C91E0C; font-weight: 800; }
+.sbpr-single__facts dt{
+  font-weight: 800;
+}
+
+.sbpr-single__facts dd{
+  margin: 0;
+}
+
+.sbpr-single__burned{
+  color: #C91E0C;
+  font-weight: 800;
+}
 
 .sbpr-single__story{
   font-size: 16px;
   line-height: 1.65;
 }
-.sbpr-single__story p{ margin: 0 0 1em; }
-.sbpr-single__story p:last-child{ margin-bottom: 0; }
 
+.sbpr-single__story p{
+  margin: 0 0 1em;
+}
+
+.sbpr-single__story p:last-child{
+  margin-bottom: 0;
+}
+
+/* Mobile: image first, then text, then story */
 @media (max-width: 800px){
-  .sbpr-single__wrap{ grid-template-columns: 1fr; }
+  .sbpr-single__wrap{
+    grid-template-columns: 1fr;
+  }
   .sbpr-single__media{ order: 1; }
   .sbpr-single__content{ order: 2; }
   .sbpr-single__story--full{ order: 3; }
-  .sbpr-single__fact{ grid-template-columns: 120px 1fr; }
+  .sbpr-single__fact{
+    grid-template-columns: 120px 1fr;
+  }
 }
 
+/* Single: story spans full width of grid, aligns with content above */
 .sbpr-single__story--full{
   grid-column: 1 / -1;
   margin-top: clamp(18px, 3vw, 34px);
   order: 3;
 }
 
-/* Force pixelated rendering on all punk images */
-.sbpr-single__img,
-.sbpr-tile__img,
-.sbpr-index__img,
-img[src*="punk-"] {
-  image-rendering: pixelated;
-  image-rendering: -moz-crisp-edges;
-  image-rendering: crisp-edges;
-  -ms-interpolation-mode: nearest-neighbor;
-}
-
-/* Canvas pixel renderer (this is the actual “no blur ever” path) */
+/* Canvas elements used for crisp pixel art scaling */
 canvas.sbpr-pixelcanvas,
-canvas.sbpr-single__img,
 canvas.sbpr-tile__img,
 canvas.sbpr-index__img {
   display: block;
-  width: 100%;
-  height: auto;
   image-rendering: pixelated;
   image-rendering: -moz-crisp-edges;
   image-rendering: crisp-edges;
 }
 
-canvas.sbpr-tile__img { width: 100%; height: 100%; }
+/* Index canvases must also be square */
+canvas.sbpr-index__img.sbpr-pixelcanvas{
+  width:100%;
+  height:auto;
+  aspect-ratio: 1 / 1;
+}
+
+/* Tile canvases are sized by the tile box */
+canvas.sbpr-tile__img.sbpr-pixelcanvas{
+  width:100%;
+  height:100%;
+}
+

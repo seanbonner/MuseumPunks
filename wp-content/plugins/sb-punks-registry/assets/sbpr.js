@@ -47,13 +47,19 @@
   // ---- Crisp pixel canvas renderer (bulletproof) ----
   const canvasImgs = new Map(); // canvas -> Image
 
+  function getCssSize(canvas){
+    // IMPORTANT: with aspect-ratio in CSS, getBoundingClientRect() returns correct dimensions.
+    const rect = canvas.getBoundingClientRect();
+    const cssW = Math.max(1, Math.round(rect.width));
+    const cssH = Math.max(1, Math.round(rect.height));
+    return { cssW, cssH };
+  }
+
   function renderCanvas(canvas){
     const img = canvasImgs.get(canvas);
     if(!img || !img.complete) return;
 
-    const rect = canvas.getBoundingClientRect();
-    const cssW = Math.max(1, Math.round(rect.width));
-    const cssH = Math.max(1, Math.round(rect.height));
+    const { cssW, cssH } = getCssSize(canvas);
     const dpr = window.devicePixelRatio || 1;
 
     const pxW = Math.max(1, Math.round(cssW * dpr));
@@ -73,7 +79,6 @@
   function loadToCanvas(canvas, src){
     const img = new Image();
     img.decoding = 'async';
-    img.loading = 'eager';
     img.onload = function(){
       canvasImgs.set(canvas, img);
       renderCanvas(canvas);
@@ -87,11 +92,8 @@
 
     const canvas = document.createElement('canvas');
     canvas.className = imgEl.className.replace(/\bsbpr-pixelimg\b/g,'').trim() + ' sbpr-pixelcanvas';
+    canvas.setAttribute('data-src', src);
     canvas.setAttribute('aria-hidden', 'true');
-
-    // Preserve sizing behavior
-    canvas.style.width = imgEl.style.width || '';
-    canvas.style.height = imgEl.style.height || '';
 
     imgEl.parentNode.insertBefore(canvas, imgEl);
     imgEl.parentNode.removeChild(imgEl);
@@ -102,10 +104,8 @@
   function scanAndCanvasify(){
     // Index images
     document.querySelectorAll('img.sbpr-index__img').forEach(replaceImgWithCanvas);
-    // Single image (template uses canvas already, but just in case)
-    document.querySelectorAll('img.sbpr-single__img').forEach(replaceImgWithCanvas);
 
-    // Any canvas that declares a data-src
+    // Any canvas that declares a data-src (single template + mosaic tiles)
     document.querySelectorAll('canvas.sbpr-pixelcanvas[data-src]').forEach(function(c){
       if(canvasImgs.has(c)) return;
       const src = c.getAttribute('data-src');
@@ -176,7 +176,6 @@
     grid.innerHTML = '';
     grid.appendChild(frag);
 
-    // load canvases we just added
     scanAndCanvasify();
     requestAnimationFrame(function(){
       document.querySelectorAll('canvas.sbpr-pixelcanvas').forEach(renderCanvas);
@@ -194,9 +193,9 @@
       if(t) clearTimeout(t);
       t = setTimeout(function(){
         if(grid) buildGrid(grid);
-        // re-render all canvases at new layout sizes
         document.querySelectorAll('canvas.sbpr-pixelcanvas').forEach(renderCanvas);
       }, 150);
     });
   });
 })();
+
