@@ -44,76 +44,6 @@
     return positions;
   }
 
-  // ---- Crisp pixel canvas renderer (bulletproof) ----
-  const canvasImgs = new Map(); // canvas -> Image
-
-  function getCssSize(canvas){
-    // IMPORTANT: with aspect-ratio in CSS, getBoundingClientRect() returns correct dimensions.
-    const rect = canvas.getBoundingClientRect();
-    const cssW = Math.max(1, Math.round(rect.width));
-    const cssH = Math.max(1, Math.round(rect.height));
-    return { cssW, cssH };
-  }
-
-  function renderCanvas(canvas){
-    const img = canvasImgs.get(canvas);
-    if(!img || !img.complete) return;
-
-    const { cssW, cssH } = getCssSize(canvas);
-    const dpr = window.devicePixelRatio || 1;
-
-    const pxW = Math.max(1, Math.round(cssW * dpr));
-    const pxH = Math.max(1, Math.round(cssH * dpr));
-
-    if(canvas.width !== pxW) canvas.width = pxW;
-    if(canvas.height !== pxH) canvas.height = pxH;
-
-    const ctx = canvas.getContext('2d', { alpha: true, desynchronized: true });
-    if(!ctx) return;
-
-    ctx.imageSmoothingEnabled = false;
-    ctx.clearRect(0,0,pxW,pxH);
-    ctx.drawImage(img, 0, 0, pxW, pxH);
-  }
-
-  function loadToCanvas(canvas, src){
-    const img = new Image();
-    img.decoding = 'async';
-    img.onload = function(){
-      canvasImgs.set(canvas, img);
-      renderCanvas(canvas);
-    };
-    img.src = src;
-  }
-
-  function replaceImgWithCanvas(imgEl){
-    const src = imgEl.getAttribute('src');
-    if(!src) return;
-
-    const canvas = document.createElement('canvas');
-    canvas.className = imgEl.className.replace(/\bsbpr-pixelimg\b/g,'').trim() + ' sbpr-pixelcanvas';
-    canvas.setAttribute('data-src', src);
-    canvas.setAttribute('aria-hidden', 'true');
-
-    imgEl.parentNode.insertBefore(canvas, imgEl);
-    imgEl.parentNode.removeChild(imgEl);
-
-    loadToCanvas(canvas, src);
-  }
-
-  function scanAndCanvasify(){
-    // Index images
-    document.querySelectorAll('img.sbpr-index__img').forEach(replaceImgWithCanvas);
-
-    // Any canvas that declares a data-src (single template + mosaic tiles)
-    document.querySelectorAll('canvas.sbpr-pixelcanvas[data-src]').forEach(function(c){
-      if(canvasImgs.has(c)) return;
-      const src = c.getAttribute('data-src');
-      if(src) loadToCanvas(c, src);
-    });
-  }
-
-  // ---- Mosaic grid ----
   function buildGrid(grid){
     const itemsRaw = grid.getAttribute('data-sbpr-items') || '[]';
     let items;
@@ -163,39 +93,30 @@
       a.setAttribute('aria-label', 'Punk ' + it.num);
 
       if(it.thumb){
-        const canvas = document.createElement('canvas');
-        canvas.className = 'sbpr-tile__img sbpr-pixelcanvas';
-        canvas.setAttribute('data-src', it.thumb);
-        canvas.setAttribute('aria-hidden', 'true');
-        a.appendChild(canvas);
+        const img = document.createElement('img');
+        img.className = 'sbpr-tile__img';
+        img.src = it.thumb;
+        img.alt = '';
+        img.decoding = 'async';
+        img.loading = 'eager';
+        a.appendChild(img);
       }
-
       frag.appendChild(a);
     }
 
     grid.innerHTML = '';
     grid.appendChild(frag);
-
-    scanAndCanvasify();
-    requestAnimationFrame(function(){
-      document.querySelectorAll('canvas.sbpr-pixelcanvas').forEach(renderCanvas);
-    });
   }
 
   ready(function(){
     const grid = document.querySelector('.sbpr-mosaic__grid[data-sbpr-items]');
     if(grid) buildGrid(grid);
 
-    scanAndCanvasify();
-
     let t = null;
     window.addEventListener('resize', function(){
+      if(!grid) return;
       if(t) clearTimeout(t);
-      t = setTimeout(function(){
-        if(grid) buildGrid(grid);
-        document.querySelectorAll('canvas.sbpr-pixelcanvas').forEach(renderCanvas);
-      }, 150);
+      t = setTimeout(function(){ buildGrid(grid); }, 150);
     });
   });
 })();
-
