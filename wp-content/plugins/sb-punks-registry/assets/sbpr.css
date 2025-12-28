@@ -189,9 +189,13 @@
   display: block;
   width: 100%;
   height: auto;
-  image-rendering: pixelated;
+  /* Force nearest-neighbor scaling across all browsers */
+  image-rendering: optimizeSpeed;
+  image-rendering: -webkit-optimize-contrast;
   image-rendering: -moz-crisp-edges;
+  image-rendering: -o-crisp-edges;
   image-rendering: crisp-edges;
+  image-rendering: pixelated;
   -ms-interpolation-mode: nearest-neighbor;
 }
 

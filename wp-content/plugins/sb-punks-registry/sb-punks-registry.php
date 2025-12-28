@@ -246,7 +246,7 @@ final class SB_Punks_Registry {
 	}
 
 	public static function enqueue_assets() : void {
-		$ver = '0.3.7';
+		$ver = '0.3.8';
 		wp_enqueue_style('sbpr', plugins_url('assets/sbpr.css', __FILE__), [], $ver);
 		wp_enqueue_script('sbpr', plugins_url('assets/sbpr.js', __FILE__), [], $ver, true);
 	}
@@ -652,7 +652,13 @@ final class SB_Punks_Registry {
 			return '';
 		}
 
-		// Return original 24x24 - let CSS handle scaling with image-rendering: pixelated
+		// Scale up the 24x24 image to target size using nearest-neighbor
+		$scaled = self::scale_image_nearest_neighbor($body, $target_size);
+		if (!empty($scaled)) {
+			return $scaled;
+		}
+
+		// Fallback to original if scaling fails
 		return $body;
 	}
 
@@ -783,8 +789,8 @@ final class SB_Punks_Registry {
 
 		// Set minimal metadata without triggering image processing
 		$metadata = [
-			'width'  => 24,
-			'height' => 24,
+			'width'  => 480,
+			'height' => 480,
 			'file'   => $upload_dir['subdir'] . '/' . $filename,
 			'sizes'  => [], // No thumbnails
 		];
