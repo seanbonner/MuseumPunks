@@ -2,7 +2,7 @@
 /**
  * Plugin Name: SB Punks Registry
  * Description: MuseumPunks registry + front-page mosaic + numeric permalinks + single punk layout.
- * Version: 0.6.1
+ * Version: 0.6.2
  * Author: SB
  */
 
@@ -269,7 +269,7 @@ final class SB_Punks_Registry {
 	}
 
 	public static function enqueue_assets() : void {
-		$ver = '0.6.1';
+		$ver = '0.6.2';
 		wp_enqueue_style('sbpr', plugins_url('assets/sbpr.css', __FILE__), [], $ver);
 		wp_enqueue_script('sbpr', plugins_url('assets/sbpr.js', __FILE__), [], $ver, true);
 	}
@@ -328,7 +328,7 @@ final class SB_Punks_Registry {
 	}
 
 	public static function shortcode_index($atts = []) : string {
-		$items = self::get_punk_items(true);
+		$items = self::get_punk_items(false);
 		if (empty($items)) return '<p class="sbpr-empty">No punks found yet.</p>';
 
 		$out = '<div class="sbpr-index">';
