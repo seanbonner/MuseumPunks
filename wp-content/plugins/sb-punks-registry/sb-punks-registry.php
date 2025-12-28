@@ -754,7 +754,8 @@ final class SB_Punks_Registry {
 			return false;
 		}
 
-		$filename = 'punk-' . $punk_id . '.png';
+		// Add timestamp to filename to bust any server/CDN cache
+		$filename = 'punk-' . $punk_id . '-' . time() . '.png';
 		$file_path = $upload_dir['path'] . '/' . $filename;
 		$file_url = $upload_dir['url'] . '/' . $filename;
 
