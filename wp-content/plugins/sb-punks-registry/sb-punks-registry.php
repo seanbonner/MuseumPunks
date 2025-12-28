@@ -1,8 +1,8 @@
 <?php
 /**
  * Plugin Name: SB Punks Registry
- * Description: MuseumPunks registry + front page mosaic + numeric permalinks + crisp pixel rendering.
- * Version: 0.4.1
+ * Description: MuseumPunks registry + front-page mosaic + numeric permalinks + single punk layout.
+ * Version: 0.4.2
  * Author: SB
  */
 
@@ -13,62 +13,66 @@ final class SB_Punks_Registry {
 	const TAX_INSTITUTION = 'sb_institution';
 	const OPT_KEY = 'sb_punks_registry_settings';
 
-	// Larva Labs official punk images (24x24 PNGs)
-	const PUNK_IMAGE_BASE = 'https://www.larvalabs.com/public/images/cryptopunks/punk';
-
-	// CryptoPunks helpers
+	// CryptoPunks site helpers
 	const CP_DETAILS_BASE = 'https://cryptopunks.app/cryptopunks/details/';
 	const CP_ACCOUNT_BASE = 'https://cryptopunks.app/cryptopunks/accountinfo?account=';
+
+	// OpenSea V1 Wrapped Punks
 	const OS_WRAPPED_BASE = 'https://opensea.io/assets/ethereum/0x282bdd42f4eb70e7a9d9f40c8fea0825b7f68c5d/';
 
-	// Meta keys
-	const META_PUNK_ID            = '_sbpr_punk_id';
-	const META_ACQUISITION_DATE   = '_sbpr_acquisition_date';
-	const META_ANNOUNCEMENT_URL   = '_sbpr_announcement_url';
-	const META_MUSEUM_WALLET      = '_sbpr_museum_wallet';
-	const META_ACQUISITION_TYPE   = '_sbpr_acquisition_type'; // donation|purchase
-	const META_DONOR_NAME         = '_sbpr_donor_name';
-	const META_DONOR_URL          = '_sbpr_donor_url';
-	const META_V1_WRAPPED         = '_sbpr_v1_wrapped';
+	// Meta keys for MuseumPunks
+	const META_PUNK_ID            = '_sbpr_punk_id';           // 0-9999 (kept in sync with title/slug)
+	const META_ACQUISITION_DATE   = '_sbpr_acquisition_date';  // YYYY-MM-DD
+	const META_ANNOUNCEMENT_URL   = '_sbpr_announcement_url';  // Acquisition announcement URL
+	const META_MUSEUM_WALLET      = '_sbpr_museum_wallet';     // Wallet address
+	const META_ACQUISITION_TYPE   = '_sbpr_acquisition_type';  // donation|purchase
+	const META_DONOR_NAME         = '_sbpr_donor_name';        // If donated, donor name
+	const META_DONOR_URL          = '_sbpr_donor_url';         // If donated, donor URL
+	const META_V1_WRAPPED         = '_sbpr_v1_wrapped';        // '1'|'0' - is the V1 wrapped?
 
-	// Internal marker for auto-generated attachments
-	const META_GEN_MARKER         = '_sbpr_generated';
-	const META_GEN_PUNK_ID        = '_sbpr_generated_punk_id';
+	// Larva Labs official punk images
+	const PUNK_IMAGE_BASE = 'https://www.larvalabs.com/public/images/cryptopunks/punk';
 
 	public static function init() : void {
 		add_action('init', [__CLASS__, 'register_cpt']);
 		add_action('init', [__CLASS__, 'register_taxonomy']);
 		add_action('init', [__CLASS__, 'register_rewrites'], 20);
-
 		add_filter('query_vars', [__CLASS__, 'register_query_vars']);
 		add_filter('template_include', [__CLASS__, 'template_override'], 50);
+
+		add_action('init', [__CLASS__, 'force_no_comments'], 30);
+
+		add_shortcode('sb_punks_home', [__CLASS__, 'shortcode_home']);
+		add_shortcode('sb_punks_index', [__CLASS__, 'shortcode_index']);
 
 		add_action('wp_enqueue_scripts', [__CLASS__, 'enqueue_assets']);
 		add_filter('body_class', [__CLASS__, 'body_class']);
 
-		// Numeric permalinks for sb_punk
+		// Force pretty /####/ permalinks for sb_punk posts.
 		add_filter('post_type_link', [__CLASS__, 'filter_sb_punk_link'], 10, 4);
 		add_filter('post_link', [__CLASS__, 'filter_sb_punk_link'], 10, 3);
 
-		// Admin
+		// Use classic editor for this CPT.
+		add_filter('use_block_editor_for_post_type', [__CLASS__, 'disable_block_editor_for_cpt'], 10, 2);
+
+		// Hard-disable comments/pings for this CPT.
+		add_filter('comments_open', [__CLASS__, 'comments_open'], 10, 2);
+		add_filter('pings_open', [__CLASS__, 'pings_open'], 10, 2);
+
+		// Admin UX
 		add_action('admin_menu', [__CLASS__, 'register_settings_page']);
 		add_action('admin_init', [__CLASS__, 'register_settings']);
 		add_action('add_meta_boxes', [__CLASS__, 'add_meta_boxes']);
 		add_action('save_post_' . self::PT, [__CLASS__, 'save_meta'], 10, 3);
 
-		// Institution taxonomy URL field
+		// Institution taxonomy custom fields
 		add_action(self::TAX_INSTITUTION . '_add_form_fields', [__CLASS__, 'institution_add_fields']);
 		add_action(self::TAX_INSTITUTION . '_edit_form_fields', [__CLASS__, 'institution_edit_fields'], 10);
 		add_action('created_' . self::TAX_INSTITUTION, [__CLASS__, 'save_institution_fields']);
 		add_action('edited_' . self::TAX_INSTITUTION, [__CLASS__, 'save_institution_fields']);
 
-		// Keep WP from generating resized variants for punk images
+		// IMPORTANT: prevent WP from making resampled thumbnails for punk files
 		add_filter('intermediate_image_sizes_advanced', [__CLASS__, 'skip_punk_thumbnails'], 10, 3);
-		add_filter('wp_calculate_image_srcset', [__CLASS__, 'disable_srcset_for_punks'], 10, 5);
-
-		// Shortcodes
-		add_shortcode('sb_punks_home', [__CLASS__, 'shortcode_home']);
-		add_shortcode('sb_punks_index', [__CLASS__, 'shortcode_index']);
 	}
 
 	public static function activate() : void {
@@ -82,9 +86,52 @@ final class SB_Punks_Registry {
 		flush_rewrite_rules();
 	}
 
-	// -------------------------
-	// CPT + Taxonomy
-	// -------------------------
+	public static function disable_block_editor_for_cpt($use, $post_type) {
+		if ($post_type === self::PT) return false;
+		return $use;
+	}
+
+	public static function force_no_comments() : void {
+		remove_post_type_support(self::PT, 'comments');
+		remove_post_type_support(self::PT, 'trackbacks');
+		remove_post_type_support(self::PT, 'excerpt');
+	}
+
+	public static function comments_open($open, $post_id) {
+		$post = get_post($post_id);
+		if ($post && $post->post_type === self::PT) return false;
+		return $open;
+	}
+
+	public static function pings_open($open, $post_id) {
+		$post = get_post($post_id);
+		if ($post && $post->post_type === self::PT) return false;
+		return $open;
+	}
+
+	/**
+	 * Skip thumbnail generation for punk images.
+	 * Matches BOTH:
+	 *   punk-4018.png
+	 *   punk-4018-1700000000.png
+	 */
+	public static function skip_punk_thumbnails($sizes, $image_meta, $attachment_id = 0) {
+		if (!empty($image_meta['file']) && preg_match('/punk-\d{1,5}(?:-\d+)?\.png$/i', (string)$image_meta['file'])) {
+			return []; // no intermediate sizes (prevents WP resampling blur)
+		}
+		return $sizes;
+	}
+
+	public static function get_settings() : array {
+		$defaults = [
+			'about_url' => '/about/',
+			'logo_default_url' => '',
+			'logo_hover_url' => '',
+		];
+		$raw = get_option(self::OPT_KEY, []);
+		if (!is_array($raw)) $raw = [];
+		return array_merge($defaults, $raw);
+	}
 
 	public static function register_cpt() : void {
 		register_post_type(self::PT, [
@@ -109,6 +156,12 @@ final class SB_Punks_Registry {
 			'labels' => [
 				'name' => 'Institutions',
 				'singular_name' => 'Institution',
+				'search_items' => 'Search Institutions',
+				'all_items' => 'All Institutions',
+				'edit_item' => 'Edit Institution',
+				'update_item' => 'Update Institution',
+				'add_new_item' => 'Add New Institution',
+				'new_item_name' => 'New Institution Name',
 				'menu_name' => 'Institutions',
 			],
 			'hierarchical' => false,
@@ -121,19 +174,44 @@ final class SB_Punks_Registry {
 		]);
 	}
 
-	// -------------------------
-	// Rewrites / Templates
-	// -------------------------
+	// Institution taxonomy custom fields
+	public static function institution_add_fields() : void {
+		?>
+		<div class="form-field">
+			<label for="institution_url">Website URL</label>
+			<input type="url" name="institution_url" id="institution_url" value="" />
+			<p class="description">The institution's website (e.g., https://moma.org)</p>
+		</div>
+		<?php
+	}
+
+	public static function institution_edit_fields($term) : void {
+		$url = get_term_meta($term->term_id, 'institution_url', true);
+		?>
+		<tr class="form-field">
+			<th scope="row"><label for="institution_url">Website URL</label></th>
+			<td>
+				<input type="url" name="institution_url" id="institution_url" value="<?php echo esc_attr($url); ?>" />
+				<p class="description">The institution's website (e.g., https://moma.org)</p>
+			</td>
+		</tr>
+		<?php
+	}
+
+	public static function save_institution_fields($term_id) : void {
+		if (isset($_POST['institution_url'])) {
+			$url = esc_url_raw($_POST['institution_url']);
+			update_term_meta($term_id, 'institution_url', $url);
+		}
+	}
 
 	public static function register_rewrites() : void {
-		// /4018/ -> sb_punk with name=4018
 		add_rewrite_rule(
 			'^([0-9]{1,5})/?$',
 			'index.php?post_type=' . self::PT . '&name=$matches[1]',
 			'top'
 		);
 
-		// /the-punks/ index
 		add_rewrite_rule(
 			'^the-punks/?$',
 			'index.php?sbpr_punks=1',
@@ -170,12 +248,8 @@ final class SB_Punks_Registry {
 		return $permalink;
 	}
 
-	// -------------------------
-	// Assets
-	// -------------------------
-
 	public static function enqueue_assets() : void {
-		$ver = '0.4.1';
+		$ver = '0.4.2';
 		wp_enqueue_style('sbpr', plugins_url('assets/sbpr.css', __FILE__), [], $ver);
 		wp_enqueue_script('sbpr', plugins_url('assets/sbpr.js', __FILE__), [], $ver, true);
 	}
@@ -192,92 +266,8 @@ final class SB_Punks_Registry {
 		}
 
 		if (is_singular(self::PT)) $classes[] = 'sbpr-single';
+
 		return $classes;
-	}
-
-	// -------------------------
-	// Settings
-	// -------------------------
-
-	public static function get_settings() : array {
-		$defaults = [
-			'about_url' => '/about/',
-			'logo_default_url' => '',
-			'logo_hover_url' => '',
-		];
-		$raw = get_option(self::OPT_KEY, []);
-		if (!is_array($raw)) $raw = [];
-		return array_merge($defaults, $raw);
-	}
-
-	public static function register_settings_page() : void {
-		add_options_page(
-			'SB Punks Registry',
-			'SB Punks Registry',
-			'manage_options',
-			'sb-punks-registry',
-			[__CLASS__, 'render_settings_page']
-		);
-	}
-
-	public static function register_settings() : void {
-		register_setting('sb_punks_registry', self::OPT_KEY, [
-			'type' => 'array',
-			'sanitize_callback' => [__CLASS__, 'sanitize_settings'],
-			'default' => [],
-		]);
-
-		add_settings_section('sbpr_main', 'Settings', '__return_false', 'sb-punks-registry');
-		add_settings_field('about_url', 'About URL', [__CLASS__, 'field_about_url'], 'sb-punks-registry', 'sbpr_main');
-		add_settings_field('logo_default_url', 'Logo image URL (default)', [__CLASS__, 'field_logo_default'], 'sb-punks-registry', 'sbpr_main');
-		add_settings_field('logo_hover_url', 'Logo image URL (hover)', [__CLASS__, 'field_logo_hover'], 'sb-punks-registry', 'sbpr_main');
-	}
-
-	public static function sanitize_settings($in) : array {
-		if (!is_array($in)) return [];
-		return [
-			'about_url' => esc_url_raw((string)($in['about_url'] ?? '/about/')),
-			'logo_default_url' => esc_url_raw((string)($in['logo_default_url'] ?? '')),
-			'logo_hover_url' => esc_url_raw((string)($in['logo_hover_url'] ?? '')),
-		];
-	}
-
-	public static function render_settings_page() : void {
-		if (!current_user_can('manage_options')) return;
-		?>
-		<div class="wrap">
-			<h1>SB Punks Registry - MuseumPunks</h1>
-			<p><strong>After updating:</strong> Settings → Permalinks → Save (once).</p>
-			<form method="post" action="options.php">
-				<?php
-				settings_fields('sb_punks_registry');
-				do_settings_sections('sb-punks-registry');
-				submit_button();
-				?>
-			</form>
-		</div>
-		<?php
-	}
-
-	public static function field_about_url() : void {
-		$s = self::get_settings();
-		?>
-		<input type="text" class="regular-text" name="<?php echo esc_attr(self::OPT_KEY); ?>[about_url]" value="<?php echo esc_attr($s['about_url']); ?>" />
-		<?php
-	}
-
-	public static function field_logo_default() : void {
-		$s = self::get_settings();
-		?>
-		<input type="text" class="regular-text" name="<?php echo esc_attr(self::OPT_KEY); ?>[logo_default_url]" value="<?php echo esc_attr($s['logo_default_url']); ?>" />
-		<?php
-	}
-
-	public static function field_logo_hover() : void {
-		$s = self::get_settings();
-		?>
-		<input type="text" class="regular-text" name="<?php echo esc_attr(self::OPT_KEY); ?>[logo_hover_url]" value="<?php echo esc_attr($s['logo_hover_url']); ?>" />
-		<?php
 	}
 
 	// -------------------------
@@ -328,8 +318,7 @@ final class SB_Punks_Registry {
 			$num = esc_html($it['num']);
 			$out .= '<a class="sbpr-index__card" href="'.$href.'">';
 			if ($thumb) {
-				// Keep <img> for no-JS fallback; JS will replace with crisp canvas.
-				$out .= '<img class="sbpr-index__img sbpr-pixelimg" src="'.$thumb.'" alt="" loading="lazy" decoding="async" />';
+				$out .= '<img class="sbpr-index__img" src="'.$thumb.'" alt="" loading="lazy" decoding="async" />';
 			} else {
 				$out .= '<span class="sbpr-index__ph" aria-hidden="true"></span>';
 			}
@@ -339,6 +328,22 @@ final class SB_Punks_Registry {
 		$out .= '</div>';
 
 		return $out;
+	}
+
+	// -------------------------
+	// Sorting helpers
+	// -------------------------
+
+	private static function normalize_date($s) : string {
+		$s = (string)$s;
+		if (preg_match('/\b(20\d{2}-\d{2}-\d{2})\b/', $s, $m)) return $m[1];
+		return '';
+	}
+
+	private static function date_key($s) : int {
+		$d = self::normalize_date($s);
+		if (!$d) return 0;
+		return (int) str_replace('-', '', $d);
 	}
 
 	// -------------------------
@@ -370,6 +375,12 @@ final class SB_Punks_Registry {
 			$thumb = '';
 			if (has_post_thumbnail($id)) {
 				$thumb = (string)get_the_post_thumbnail_url($id, 'full');
+			} else {
+				$attached = get_attached_media('image', $id);
+				if (!empty($attached)) {
+					$first = reset($attached);
+					$thumb = $first ? wp_get_attachment_image_url($first->ID, 'full') : '';
+				}
 			}
 
 			$acquisition_date = self::normalize_date((string)get_post_meta($id, self::META_ACQUISITION_DATE, true));
@@ -406,174 +417,6 @@ final class SB_Punks_Registry {
 		return $items;
 	}
 
-	private static function normalize_date($s) : string {
-		$s = (string)$s;
-		if (preg_match('/\b(20\d{2}-\d{2}-\d{2})\b/', $s, $m)) return $m[1];
-		return '';
-	}
-
-	private static function date_key($s) : int {
-		$d = self::normalize_date($s);
-		if (!$d) return 0;
-		return (int) str_replace('-', '', $d);
-	}
-
-	// -------------------------
-	// Image generation (STORE ORIGINAL 24x24 — DO NOT SCALE)
-	// -------------------------
-
-	private static function is_generated_punk_attachment(int $attachment_id, int $punk_id) : bool {
-		$gen = (string)get_post_meta($attachment_id, self::META_GEN_MARKER, true);
-		$gen_id = (int)get_post_meta($attachment_id, self::META_GEN_PUNK_ID, true);
-		if ($gen !== '1') return false;
-		if ($gen_id !== $punk_id) return false;
-
-		$file = get_attached_file($attachment_id);
-		if (!$file) return false;
-		$base = basename((string)$file);
-
-		// punk-4018-1700000000.png
-		return (bool)preg_match('/^punk-' . preg_quote((string)$punk_id, '/') . '-\d+\.png$/i', $base);
-	}
-
-	/**
-	 * Fetch the ORIGINAL 24x24 PNG from Larva Labs (no scaling).
-	 */
-	private static function fetch_punk_image(int $punk_id) : string {
-		if ($punk_id < 0 || $punk_id > 9999) return '';
-
-		$padded = str_pad((string)$punk_id, 4, '0', STR_PAD_LEFT);
-		$url = self::PUNK_IMAGE_BASE . $padded . '.png';
-
-		$response = wp_remote_get($url, ['timeout' => 30]);
-		if (is_wp_error($response)) {
-			error_log('SBPR: Failed to fetch punk image - ' . $response->get_error_message());
-			return '';
-		}
-
-		$code = wp_remote_retrieve_response_code($response);
-		if ($code !== 200) {
-			error_log('SBPR: Punk image returned HTTP ' . $code . ' for punk ' . $punk_id);
-			return '';
-		}
-
-		$body = (string)wp_remote_retrieve_body($response);
-		if ($body === '') {
-			error_log('SBPR: Empty response for punk ' . $punk_id);
-			return '';
-		}
-
-		return $body;
-	}
-
-	/**
-	 * Generate punk image and set as featured image.
-	 * IMPORTANT: stores ORIGINAL 24x24 to avoid baking in blur.
-	 */
-	public static function generate_punk_image(int $post_id, int $punk_id) : bool {
-		// If there IS a featured image and it's ours but not 24x24, replace it.
-		if (has_post_thumbnail($post_id)) {
-			$thumb_id = (int)get_post_thumbnail_id($post_id);
-			if ($thumb_id && self::is_generated_punk_attachment($thumb_id, $punk_id)) {
-				$meta = wp_get_attachment_metadata($thumb_id);
-				$w = (int)($meta['width'] ?? 0);
-				$h = (int)($meta['height'] ?? 0);
-				if ($w !== 24 || $h !== 24) {
-					wp_delete_attachment($thumb_id, true);
-					delete_post_thumbnail($post_id);
-				} else {
-					return true; // already correct
-				}
-			} else {
-				return true; // not ours, don't touch
-			}
-		}
-
-		$image_data = self::fetch_punk_image($punk_id);
-		if ($image_data === '') {
-			error_log('SBPR: Could not fetch image for punk ' . $punk_id);
-			return false;
-		}
-
-		$upload_dir = wp_upload_dir();
-		if (!empty($upload_dir['error'])) {
-			error_log('SBPR: Upload dir error - ' . $upload_dir['error']);
-			return false;
-		}
-
-		$filename  = 'punk-' . $punk_id . '-' . time() . '.png';
-		$file_path = $upload_dir['path'] . '/' . $filename;
-		$file_url  = $upload_dir['url'] . '/' . $filename;
-
-		if (file_put_contents($file_path, $image_data) === false) {
-			error_log('SBPR: Could not write file for punk ' . $punk_id);
-			return false;
-		}
-
-		$attachment = [
-			'post_mime_type' => 'image/png',
-			'post_title'     => 'CryptoPunk #' . $punk_id,
-			'post_content'   => '',
-			'post_status'    => 'inherit',
-			'guid'           => $file_url,
-		];
-
-		$attachment_id = wp_insert_attachment($attachment, $file_path, $post_id);
-		if (is_wp_error($attachment_id) || !$attachment_id) {
-			error_log('SBPR: Failed to create attachment for punk ' . $punk_id);
-			@unlink($file_path);
-			return false;
-		}
-
-		// Detect true dimensions (should be 24x24)
-		$w = 24; $h = 24;
-		if (function_exists('getimagesizefromstring')) {
-			$info = @getimagesizefromstring($image_data);
-			if (is_array($info) && !empty($info[0]) && !empty($info[1])) {
-				$w = (int)$info[0];
-				$h = (int)$info[1];
-			}
-		}
-
-		$metadata = [
-			'width'  => $w,
-			'height' => $h,
-			'file'   => $upload_dir['subdir'] . '/' . $filename,
-			'sizes'  => [],
-		];
-		wp_update_attachment_metadata($attachment_id, $metadata);
-
-		update_post_meta($attachment_id, self::META_GEN_MARKER, '1');
-		update_post_meta($attachment_id, self::META_GEN_PUNK_ID, (string)$punk_id);
-
-		set_post_thumbnail($post_id, $attachment_id);
-		return true;
-	}
-
-	// -------------------------
-	// Prevent WP resized variants / srcset for punk attachments
-	// -------------------------
-
-	private static function is_punk_file($file) : bool {
-		$base = basename((string)$file);
-		// punk-4018-1700000000.png
-		return (bool)preg_match('/^punk-\d{1,5}-\d+\.png$/i', $base);
-	}
-
-	public static function skip_punk_thumbnails($sizes, $image_meta, $attachment_id = 0) {
-		if (!empty($image_meta['file']) && self::is_punk_file($image_meta['file'])) {
-			return [];
-		}
-		return $sizes;
-	}
-
-	public static function disable_srcset_for_punks($sources, $size_array, $image_src, $image_meta, $attachment_id) {
-		if (!empty($image_meta['file']) && self::is_punk_file($image_meta['file'])) {
-			return false;
-		}
-		return $sources;
-	}
-
 	// -------------------------
 	// Single rendering helpers
 	// -------------------------
@@ -606,42 +449,79 @@ final class SB_Punks_Registry {
 	}
 
 	// -------------------------
-	// Admin UI: Institution URL field
+	// Admin: settings + meta
 	// -------------------------
 
-	public static function institution_add_fields() : void {
+	public static function register_settings_page() : void {
+		add_options_page(
+			'SB Punks Registry',
+			'SB Punks Registry',
+			'manage_options',
+			'sb-punks-registry',
+			[__CLASS__, 'render_settings_page']
+		);
+	}
+
+	public static function register_settings() : void {
+		register_setting('sb_punks_registry', self::OPT_KEY, [
+			'type' => 'array',
+			'sanitize_callback' => [__CLASS__, 'sanitize_settings'],
+			'default' => [],
+		]);
+
+		add_settings_section('sbpr_main', 'Settings', '__return_false', 'sb-punks-registry');
+
+		add_settings_field('about_url', 'About URL', [__CLASS__, 'field_about_url'], 'sb-punks-registry', 'sbpr_main');
+		add_settings_field('logo_default_url', 'Logo image URL (default)', [__CLASS__, 'field_logo_default'], 'sb-punks-registry', 'sbpr_main');
+		add_settings_field('logo_hover_url', 'Logo image URL (hover)', [__CLASS__, 'field_logo_hover'], 'sb-punks-registry', 'sbpr_main');
+	}
+
+	public static function sanitize_settings($in) : array {
+		if (!is_array($in)) return [];
+		return [
+			'about_url' => esc_url_raw((string)($in['about_url'] ?? '/about/')),
+			'logo_default_url' => esc_url_raw((string)($in['logo_default_url'] ?? '')),
+			'logo_hover_url' => esc_url_raw((string)($in['logo_hover_url'] ?? '')),
+		];
+	}
+
+	public static function render_settings_page() : void {
+		if (!current_user_can('manage_options')) return;
 		?>
-		<div class="form-field">
-			<label for="institution_url">Website URL</label>
-			<input type="url" name="institution_url" id="institution_url" value="" />
-			<p class="description">The institution's website (e.g., https://moma.org)</p>
+		<div class="wrap">
+			<h1>SB Punks Registry - MuseumPunks</h1>
+			<p><strong>After updating:</strong> Settings &rarr; Permalinks &rarr; Save (once).</p>
+			<form method="post" action="options.php">
+				<?php
+				settings_fields('sb_punks_registry');
+				do_settings_sections('sb-punks-registry');
+				submit_button();
+				?>
+			</form>
 		</div>
 		<?php
 	}
 
-	public static function institution_edit_fields($term) : void {
-		$url = get_term_meta($term->term_id, 'institution_url', true);
+	public static function field_about_url() : void {
+		$s = self::get_settings();
 		?>
-		<tr class="form-field">
-			<th scope="row"><label for="institution_url">Website URL</label></th>
-			<td>
-				<input type="url" name="institution_url" id="institution_url" value="<?php echo esc_attr($url); ?>" />
-				<p class="description">The institution's website (e.g., https://moma.org)</p>
-			</td>
-		</tr>
+		<input type="text" class="regular-text" name="<?php echo esc_attr(self::OPT_KEY); ?>[about_url]" value="<?php echo esc_attr($s['about_url']); ?>" />
 		<?php
 	}
 
-	public static function save_institution_fields($term_id) : void {
-		if (isset($_POST['institution_url'])) {
-			$url = esc_url_raw($_POST['institution_url']);
-			update_term_meta($term_id, 'institution_url', $url);
-		}
+	public static function field_logo_default() : void {
+		$s = self::get_settings();
+		?>
+		<input type="text" class="regular-text" name="<?php echo esc_attr(self::OPT_KEY); ?>[logo_default_url]" value="<?php echo esc_attr($s['logo_default_url']); ?>" />
+		<?php
 	}
 
-	// -------------------------
-	// Admin UI: Meta boxes
-	// -------------------------
+	public static function field_logo_hover() : void {
+		$s = self::get_settings();
+		?>
+		<input type="text" class="regular-text" name="<?php echo esc_attr(self::OPT_KEY); ?>[logo_hover_url]" value="<?php echo esc_attr($s['logo_hover_url']); ?>" />
+		<?php
+	}
 
 	public static function add_meta_boxes() : void {
 		add_meta_box('sbpr_meta', 'Punk Details', [__CLASS__, 'render_meta_box'], self::PT, 'side', 'high');
@@ -663,65 +543,283 @@ final class SB_Punks_Registry {
 
 		$punk_id = (string)get_post_meta($post->ID, self::META_PUNK_ID, true);
 		$v1_wrapped = (string)get_post_meta($post->ID, self::META_V1_WRAPPED, true);
+
 		?>
 		<p>
 			<label for="sbpr_punk_id"><strong>Punk #</strong></label><br/>
 			<input type="number" min="0" max="9999" id="sbpr_punk_id" name="sbpr_punk_id" value="<?php echo esc_attr($punk_id); ?>" style="width:100%;" />
 		</p>
+
 		<p>
-			<label><strong>V1 status</strong></label><br/>
-			<label><input type="radio" name="sbpr_v1_wrapped" value="0" <?php checked($v1_wrapped !== '1'); ?> /> Unwrapped</label><br/>
-			<label><input type="radio" name="sbpr_v1_wrapped" value="1" <?php checked($v1_wrapped === '1'); ?> /> Wrapped</label>
+			<label for="sbpr_v1_wrapped"><strong>V1 Wrapped?</strong></label><br/>
+			<select id="sbpr_v1_wrapped" name="sbpr_v1_wrapped" style="width:100%;">
+				<option value="0" <?php selected($v1_wrapped, '0'); ?>>No (Unwrapped)</option>
+				<option value="1" <?php selected($v1_wrapped, '1'); ?>>Yes (Wrapped)</option>
+			</select>
+			<span class="description">If wrapped, shows OpenSea link</span>
 		</p>
-		<p style="opacity:.8;margin:0;">
-			Image is stored as <strong>original 24×24 PNG</strong>. Front-end scales via canvas (no smoothing).
+
+		<hr/>
+		<p style="margin:0;">
+			<label>
+				<input type="checkbox" name="sbpr_regen_image" value="1" />
+				<strong>Regenerate image on save</strong>
+			</label><br/>
+			<span class="description">Use this to fix already-imported blurred images.</span>
 		</p>
 		<?php
 	}
 
 	public static function render_wallet_box($post) : void {
 		$museum_wallet = (string)get_post_meta($post->ID, self::META_MUSEUM_WALLET, true);
-		self::field_row('Museum Wallet', 'sbpr_museum_wallet', $museum_wallet, '0x...');
+		?>
+		<p class="description" style="margin-top:0;">Institution is set via the "Institutions" taxonomy (see sidebar or below). Add wallet address here:</p>
+		<?php
+		self::field_row('Institution Wallet', 'sbpr_museum_wallet', $museum_wallet, '0x...');
 	}
 
 	public static function render_acquisition_box($post) : void {
-		$acq_date = (string)get_post_meta($post->ID, self::META_ACQUISITION_DATE, true);
-		$ann_url = (string)get_post_meta($post->ID, self::META_ANNOUNCEMENT_URL, true);
-		$type = (string)get_post_meta($post->ID, self::META_ACQUISITION_TYPE, true);
-		$donor_name = (string)get_post_meta($post->ID, self::META_DONOR_NAME, true);
-		$donor_url = (string)get_post_meta($post->ID, self::META_DONOR_URL, true);
+		$acquisition_date   = (string)get_post_meta($post->ID, self::META_ACQUISITION_DATE, true);
+		$announcement_url   = (string)get_post_meta($post->ID, self::META_ANNOUNCEMENT_URL, true);
+		$acquisition_type   = (string)get_post_meta($post->ID, self::META_ACQUISITION_TYPE, true);
+		$donor_name         = (string)get_post_meta($post->ID, self::META_DONOR_NAME, true);
+		$donor_url          = (string)get_post_meta($post->ID, self::META_DONOR_URL, true);
 
 		?>
-		<p>
-			<label><strong>Acquisition date</strong></label><br/>
-			<input type="date" name="sbpr_acquisition_date" value="<?php echo esc_attr($acq_date); ?>" />
+		<p style="margin:0 0 12px;">
+			<label for="sbpr_acquisition_date"><strong>Acquisition Date (YYYY-MM-DD)</strong></label><br/>
+			<input type="text" id="sbpr_acquisition_date" name="sbpr_acquisition_date" value="<?php echo esc_attr($acquisition_date); ?>" placeholder="2024-01-15" style="width:100%;" />
+			<span class="description">Controls ordering on /the-punks/ (newest first).</span>
 		</p>
-		<?php self::field_row('Announcement URL', 'sbpr_announcement_url', $ann_url, 'https://...'); ?>
 
-		<p>
-			<label><strong>Type</strong></label><br/>
-			<select name="sbpr_acquisition_type">
-				<option value="" <?php selected($type, ''); ?>>—</option>
-				<option value="purchase" <?php selected($type, 'purchase'); ?>>Purchase</option>
-				<option value="donation" <?php selected($type, 'donation'); ?>>Donation</option>
+		<?php self::field_row('Acquisition Announcement URL', 'sbpr_announcement_url', $announcement_url, 'https://...'); ?>
+
+		<p style="margin:0 0 12px;">
+			<label for="sbpr_acquisition_type"><strong>Acquisition Type</strong></label><br/>
+			<select id="sbpr_acquisition_type" name="sbpr_acquisition_type" style="width:100%;">
+				<option value="" <?php selected($acquisition_type, ''); ?>>(not set)</option>
+				<option value="donation" <?php selected($acquisition_type, 'donation'); ?>>Donation</option>
+				<option value="purchase" <?php selected($acquisition_type, 'purchase'); ?>>Purchase</option>
 			</select>
 		</p>
 
-		<?php self::field_row('Donor name (if donation)', 'sbpr_donor_name', $donor_name, 'Name'); ?>
-		<?php self::field_row('Donor URL (optional)', 'sbpr_donor_url', $donor_url, 'https://...'); ?>
+		<div id="sbpr_donor_fields" style="<?php echo ($acquisition_type !== 'donation') ? 'display:none;' : ''; ?>">
+			<hr/>
+			<p class="description" style="margin-top:0;">Donor info (only shown if acquisition type is "Donation"):</p>
+			<?php
+			self::field_row('Donor Name', 'sbpr_donor_name', $donor_name, 'John Smith');
+			self::field_row('Donor URL', 'sbpr_donor_url', $donor_url, 'https://twitter.com/...');
+			?>
+		</div>
+
+		<script>
+		(function(){
+			var sel = document.getElementById('sbpr_acquisition_type');
+			var fields = document.getElementById('sbpr_donor_fields');
+			if(sel && fields){
+				sel.addEventListener('change', function(){
+					fields.style.display = (sel.value === 'donation') ? '' : 'none';
+				});
+			}
+		})();
+		</script>
 		<?php
 	}
 
 	// -------------------------
-	// Save Meta
+	// Punk image generation (FIXED)
 	// -------------------------
+
+	/**
+	 * Fetch punk PNG from Larva Labs.
+	 * We ALWAYS normalize to an actual 24x24 grid and then scale to 480 with integer blocks.
+	 */
+	private static function fetch_punk_image_480(int $punk_id) : string {
+		if ($punk_id < 0 || $punk_id > 9999) return '';
+
+		$padded = str_pad((string)$punk_id, 4, '0', STR_PAD_LEFT);
+		$url = self::PUNK_IMAGE_BASE . $padded . '.png';
+
+		$response = wp_remote_get($url, ['timeout' => 30]);
+		if (is_wp_error($response)) {
+			error_log('SBPR: Failed to fetch punk image - ' . $response->get_error_message());
+			return '';
+		}
+		$code = wp_remote_retrieve_response_code($response);
+		if ($code !== 200) {
+			error_log('SBPR: Punk image returned HTTP ' . $code . ' for punk ' . $punk_id);
+			return '';
+		}
+		$body = wp_remote_retrieve_body($response);
+		if (empty($body)) {
+			error_log('SBPR: Empty response for punk ' . $punk_id);
+			return '';
+		}
+
+		return self::normalize_and_scale_to_480($body);
+	}
+
+	private static function normalize_and_scale_to_480(string $image_data) : string {
+		if (!function_exists('imagecreatefromstring')) {
+			error_log('SBPR: GD not available for scaling');
+			return '';
+		}
+
+		$src = @imagecreatefromstring($image_data);
+		if ($src === false) {
+			error_log('SBPR: GD could not read image');
+			return '';
+		}
+
+		$src_w = imagesx($src);
+		$src_h = imagesy($src);
+
+		// Step 1: normalize to a true 24x24 (nearest-sample) regardless of input size
+		$grid = imagecreatetruecolor(24, 24);
+		if ($grid === false) { imagedestroy($src); return ''; }
+
+		imagealphablending($grid, false);
+		imagesavealpha($grid, true);
+		$transparent = imagecolorallocatealpha($grid, 0, 0, 0, 127);
+		imagefilledrectangle($grid, 0, 0, 23, 23, $transparent);
+
+		$cache24 = [];
+
+		for ($y = 0; $y < 24; $y++) {
+			for ($x = 0; $x < 24; $x++) {
+				// Sample the center of the corresponding source cell
+				$sx = (int)floor(($x + 0.5) * $src_w / 24.0);
+				$sy = (int)floor(($y + 0.5) * $src_h / 24.0);
+				if ($sx < 0) $sx = 0; if ($sx >= $src_w) $sx = $src_w - 1;
+				if ($sy < 0) $sy = 0; if ($sy >= $src_h) $sy = $src_h - 1;
+
+				$src_color = imagecolorat($src, $sx, $sy);
+				$rgba = imagecolorsforindex($src, $src_color);
+
+				$key = "{$rgba['red']},{$rgba['green']},{$rgba['blue']},{$rgba['alpha']}";
+				if (!isset($cache24[$key])) {
+					$cache24[$key] = imagecolorallocatealpha($grid, $rgba['red'], $rgba['green'], $rgba['blue'], $rgba['alpha']);
+				}
+				imagesetpixel($grid, $x, $y, $cache24[$key]);
+			}
+		}
+
+		// Step 2: scale 24 -> 480 via solid blocks (20x20)
+		$dst = imagecreatetruecolor(480, 480);
+		if ($dst === false) { imagedestroy($src); imagedestroy($grid); return ''; }
+
+		imagealphablending($dst, false);
+		imagesavealpha($dst, true);
+		$transparent2 = imagecolorallocatealpha($dst, 0, 0, 0, 127);
+		imagefilledrectangle($dst, 0, 0, 479, 479, $transparent2);
+
+		$cache480 = [];
+		$scale = 20;
+
+		for ($y = 0; $y < 24; $y++) {
+			for ($x = 0; $x < 24; $x++) {
+				$c = imagecolorat($grid, $x, $y);
+				$rgba = imagecolorsforindex($grid, $c);
+
+				if ($rgba['alpha'] === 127) continue;
+
+				$key = "{$rgba['red']},{$rgba['green']},{$rgba['blue']},{$rgba['alpha']}";
+				if (!isset($cache480[$key])) {
+					$cache480[$key] = imagecolorallocatealpha($dst, $rgba['red'], $rgba['green'], $rgba['blue'], $rgba['alpha']);
+				}
+
+				$dx1 = $x * $scale;
+				$dy1 = $y * $scale;
+				$dx2 = $dx1 + $scale - 1;
+				$dy2 = $dy1 + $scale - 1;
+
+				imagefilledrectangle($dst, $dx1, $dy1, $dx2, $dy2, $cache480[$key]);
+			}
+		}
+
+		ob_start();
+		imagepng($dst, null, 9);
+		$out = ob_get_clean();
+
+		imagedestroy($src);
+		imagedestroy($grid);
+		imagedestroy($dst);
+
+		return (string)$out;
+	}
+
+	/**
+	 * Generate punk image and set as featured image.
+	 * Uses wp_generate_attachment_metadata BUT with our thumbnail-size filter returning [],
+	 * so WP does NOT create resampled sizes.
+	 */
+	public static function generate_punk_image(int $post_id, int $punk_id, bool $force = false) : bool {
+		$old_thumb_id = get_post_thumbnail_id($post_id);
+		if ($old_thumb_id && !$force) return true;
+
+		if ($old_thumb_id && $force) {
+			// Hard delete old attachment+file to avoid confusion/caching
+			wp_delete_attachment($old_thumb_id, true);
+		}
+
+		$image_data = self::fetch_punk_image_480($punk_id);
+		if (empty($image_data)) {
+			error_log('SBPR: Could not fetch/scale image for punk ' . $punk_id);
+			return false;
+		}
+
+		$upload_dir = wp_upload_dir();
+		if (!empty($upload_dir['error'])) {
+			error_log('SBPR: Upload dir error - ' . $upload_dir['error']);
+			return false;
+		}
+
+		$filename = 'punk-' . $punk_id . '-' . time() . '.png';
+		$file_path = $upload_dir['path'] . '/' . $filename;
+
+		if (file_put_contents($file_path, $image_data) === false) {
+			error_log('SBPR: Could not write file for punk ' . $punk_id);
+			return false;
+		}
+
+		$filetype = wp_check_filetype($filename, null);
+
+		$attachment = [
+			'post_mime_type' => $filetype['type'] ?: 'image/png',
+			'post_title'     => 'CryptoPunk #' . $punk_id,
+			'post_content'   => '',
+			'post_status'    => 'inherit',
+		];
+
+		$attachment_id = wp_insert_attachment($attachment, $file_path, $post_id);
+		if (is_wp_error($attachment_id) || !$attachment_id) {
+			error_log('SBPR: Failed to create attachment for punk ' . $punk_id);
+			@unlink($file_path);
+			return false;
+		}
+
+		require_once ABSPATH . 'wp-admin/includes/image.php';
+
+		// This will record correct width/height; intermediate sizes are suppressed by our filter.
+		$metadata = wp_generate_attachment_metadata($attachment_id, $file_path);
+		if (is_array($metadata)) {
+			wp_update_attachment_metadata($attachment_id, $metadata);
+		}
+
+		set_post_thumbnail($post_id, $attachment_id);
+		return true;
+	}
 
 	public static function save_meta($post_id, $post, $update) : void {
 		if (!isset($_POST['sbpr_nonce']) || !wp_verify_nonce($_POST['sbpr_nonce'], 'sbpr_save_meta')) return;
 		if (defined('DOING_AUTOSAVE') && DOING_AUTOSAVE) return;
 		if (!current_user_can('edit_post', $post_id)) return;
 
+		$force_regen = isset($_POST['sbpr_regen_image']) && (string)$_POST['sbpr_regen_image'] === '1';
+
+		// Punk # (keep title/slug synced)
 		$punk_id_to_generate = null;
+		$force_generate = false;
 
 		if (isset($_POST['sbpr_punk_id']) && $_POST['sbpr_punk_id'] !== '') {
 			$punk_id = (int)$_POST['sbpr_punk_id'];
@@ -729,30 +827,26 @@ final class SB_Punks_Registry {
 				$old_punk_id = (string)get_post_meta($post_id, self::META_PUNK_ID, true);
 				update_post_meta($post_id, self::META_PUNK_ID, (string)$punk_id);
 
-				// Keep title + slug synced to the number
-				$new_title = (string)$punk_id;
-				if ($post->post_title !== $new_title || $post->post_name !== $new_title) {
+				$desired = (string)$punk_id;
+				if ($post->post_name !== $desired || $post->post_title !== $desired) {
 					remove_action('save_post_' . self::PT, [__CLASS__, 'save_meta'], 10);
 					wp_update_post([
 						'ID' => $post_id,
-						'post_title' => $new_title,
-						'post_name' => $new_title,
+						'post_name' => $desired,
+						'post_title' => $desired,
 					]);
 					add_action('save_post_' . self::PT, [__CLASS__, 'save_meta'], 10, 3);
 				}
 
-				// Always ensure image exists (and will auto-replace old 480x480 generated ones)
-				if ($old_punk_id !== (string)$punk_id || !has_post_thumbnail($post_id)) {
+				if ($old_punk_id !== (string)$punk_id) {
 					$punk_id_to_generate = $punk_id;
-				} else {
-					// If it has a thumbnail, still verify it isn't one of our old 480x480 generated ones
-					$thumb_id = (int)get_post_thumbnail_id($post_id);
-					if ($thumb_id && self::is_generated_punk_attachment($thumb_id, $punk_id)) {
-						$meta = wp_get_attachment_metadata($thumb_id);
-						$w = (int)($meta['width'] ?? 0);
-						$h = (int)($meta['height'] ?? 0);
-						if ($w !== 24 || $h !== 24) $punk_id_to_generate = $punk_id;
-					}
+					$force_generate = true;
+				} elseif (!has_post_thumbnail($post_id)) {
+					$punk_id_to_generate = $punk_id;
+					$force_generate = false;
+				} elseif ($force_regen) {
+					$punk_id_to_generate = $punk_id;
+					$force_generate = true;
 				}
 			}
 		}
@@ -778,13 +872,12 @@ final class SB_Punks_Registry {
 		update_post_meta($post_id, self::META_ACQUISITION_TYPE, $acquisition_type);
 
 		$donor_name = isset($_POST['sbpr_donor_name']) ? sanitize_text_field((string)$_POST['sbpr_donor_name']) : '';
-		$donor_url  = isset($_POST['sbpr_donor_url']) ? esc_url_raw((string)$_POST['sbpr_donor_url']) : '';
+		$donor_url = isset($_POST['sbpr_donor_url']) ? esc_url_raw((string)$_POST['sbpr_donor_url']) : '';
 		update_post_meta($post_id, self::META_DONOR_NAME, $donor_name);
 		update_post_meta($post_id, self::META_DONOR_URL, $donor_url);
 
-		// Generate image (original 24x24)
 		if ($punk_id_to_generate !== null) {
-			self::generate_punk_image($post_id, $punk_id_to_generate);
+			self::generate_punk_image($post_id, $punk_id_to_generate, $force_generate);
 		}
 	}
 }

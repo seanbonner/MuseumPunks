@@ -71,10 +71,7 @@ function sbpr_wallet_link($wallet, $name = '') {
 		<div class="sbpr-single__media">
 			<?php if ($img_url): ?>
 				<a class="sbpr-single__imglink" href="<?php echo SB_Punks_Registry::cp_details_url($punk_num_clean); ?>" aria-label="View on CryptoPunks">
-					<canvas class="sbpr-single__img sbpr-pixelcanvas" data-src="<?php echo esc_url($img_url); ?>"></canvas>
-					<noscript>
-						<img class="sbpr-single__img" src="<?php echo esc_url($img_url); ?>" alt="" decoding="async" loading="eager" />
-					</noscript>
+					<img class="sbpr-single__img" src="<?php echo esc_url($img_url); ?>" alt="" decoding="async" loading="eager" width="480" height="480" />
 				</a>
 			<?php endif; ?>
 		</div>
