@@ -2,7 +2,7 @@
 /**
  * Plugin Name: SB Punks Registry
  * Description: MuseumPunks registry + front-page mosaic + numeric permalinks + single punk layout.
- * Version: 0.3.4
+ * Version: 0.3.5
  * Author: SB
  */
 
@@ -652,13 +652,7 @@ final class SB_Punks_Registry {
 			return '';
 		}
 
-		// Scale up the 24x24 image to target size using nearest-neighbor
-		$scaled = self::scale_image_nearest_neighbor($body, $target_size);
-		if (!empty($scaled)) {
-			return $scaled;
-		}
-
-		// Fallback to original if scaling fails
+		// Return original 24x24 - let CSS handle scaling with image-rendering: pixelated
 		return $body;
 	}
 
@@ -788,8 +782,8 @@ final class SB_Punks_Registry {
 
 		// Set minimal metadata without triggering image processing
 		$metadata = [
-			'width'  => 480,
-			'height' => 480,
+			'width'  => 24,
+			'height' => 24,
 			'file'   => $upload_dir['subdir'] . '/' . $filename,
 			'sizes'  => [], // No thumbnails
 		];
