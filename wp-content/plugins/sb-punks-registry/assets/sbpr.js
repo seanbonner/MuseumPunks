@@ -2,7 +2,6 @@
   function ready(fn){ if(document.readyState !== 'loading'){ fn(); } else { document.addEventListener('DOMContentLoaded', fn); } }
 
   function uniquePositionsStratified(total, n){
-    // Pick ~evenly distributed positions across [0,total) by taking 1 from each segment.
     const chosen = new Set();
     const positions = [];
     if(n <= 0) return positions;
@@ -16,7 +15,6 @@
         pick = start + Math.floor(Math.random() * (end - start + 1));
       }
 
-      // Try within segment first.
       let found = -1;
       const segLen = end - start + 1;
       for(let k=0;k<segLen;k++){
@@ -27,7 +25,6 @@
         }
       }
 
-      // Fallback: global scan.
       if(found === -1){
         for(let idx=0; idx<total; idx++){
           if(!chosen.has(idx)){
@@ -47,13 +44,82 @@
     return positions;
   }
 
+  // ---- Crisp pixel canvas renderer (bulletproof) ----
+  const canvasImgs = new Map(); // canvas -> Image
+
+  function renderCanvas(canvas){
+    const img = canvasImgs.get(canvas);
+    if(!img || !img.complete) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const cssW = Math.max(1, Math.round(rect.width));
+    const cssH = Math.max(1, Math.round(rect.height));
+    const dpr = window.devicePixelRatio || 1;
+
+    const pxW = Math.max(1, Math.round(cssW * dpr));
+    const pxH = Math.max(1, Math.round(cssH * dpr));
+
+    if(canvas.width !== pxW) canvas.width = pxW;
+    if(canvas.height !== pxH) canvas.height = pxH;
+
+    const ctx = canvas.getContext('2d', { alpha: true, desynchronized: true });
+    if(!ctx) return;
+
+    ctx.imageSmoothingEnabled = false;
+    ctx.clearRect(0,0,pxW,pxH);
+    ctx.drawImage(img, 0, 0, pxW, pxH);
+  }
+
+  function loadToCanvas(canvas, src){
+    const img = new Image();
+    img.decoding = 'async';
+    img.loading = 'eager';
+    img.onload = function(){
+      canvasImgs.set(canvas, img);
+      renderCanvas(canvas);
+    };
+    img.src = src;
+  }
+
+  function replaceImgWithCanvas(imgEl){
+    const src = imgEl.getAttribute('src');
+    if(!src) return;
+
+    const canvas = document.createElement('canvas');
+    canvas.className = imgEl.className.replace(/\bsbpr-pixelimg\b/g,'').trim() + ' sbpr-pixelcanvas';
+    canvas.setAttribute('aria-hidden', 'true');
+
+    // Preserve sizing behavior
+    canvas.style.width = imgEl.style.width || '';
+    canvas.style.height = imgEl.style.height || '';
+
+    imgEl.parentNode.insertBefore(canvas, imgEl);
+    imgEl.parentNode.removeChild(imgEl);
+
+    loadToCanvas(canvas, src);
+  }
+
+  function scanAndCanvasify(){
+    // Index images
+    document.querySelectorAll('img.sbpr-index__img').forEach(replaceImgWithCanvas);
+    // Single image (template uses canvas already, but just in case)
+    document.querySelectorAll('img.sbpr-single__img').forEach(replaceImgWithCanvas);
+
+    // Any canvas that declares a data-src
+    document.querySelectorAll('canvas.sbpr-pixelcanvas[data-src]').forEach(function(c){
+      if(canvasImgs.has(c)) return;
+      const src = c.getAttribute('data-src');
+      if(src) loadToCanvas(c, src);
+    });
+  }
+
+  // ---- Mosaic grid ----
   function buildGrid(grid){
     const itemsRaw = grid.getAttribute('data-sbpr-items') || '[]';
     let items;
     try { items = JSON.parse(itemsRaw); } catch(e){ items = []; }
     if(!Array.isArray(items) || items.length === 0) return;
 
-    // Order by punk number ascending (so lower IDs appear earlier in the reading order)
     items = items.slice().sort((a,b)=> (parseInt(a.num,10)||0) - (parseInt(b.num,10)||0));
 
     const tile = 96;
@@ -72,7 +138,6 @@
     grid.style.setProperty('--sbpr-gap', gap + 'px');
     grid.style.setProperty('--sbpr-cols', String(cols));
 
-    // Place each punk once; everything else is a grey block.
     const n = Math.min(items.length, total);
     const positions = uniquePositionsStratified(total, n);
 
@@ -98,32 +163,40 @@
       a.setAttribute('aria-label', 'Punk ' + it.num);
 
       if(it.thumb){
-        const img = document.createElement('img');
-        img.className = 'sbpr-tile__img';
-        img.src = it.thumb;
-        img.alt = '';
-        img.decoding = 'async';
-        // Only ~12 images, so eager loading keeps hover smooth.
-        img.loading = 'eager';
-        a.appendChild(img);
+        const canvas = document.createElement('canvas');
+        canvas.className = 'sbpr-tile__img sbpr-pixelcanvas';
+        canvas.setAttribute('data-src', it.thumb);
+        canvas.setAttribute('aria-hidden', 'true');
+        a.appendChild(canvas);
       }
+
       frag.appendChild(a);
     }
 
     grid.innerHTML = '';
     grid.appendChild(frag);
+
+    // load canvases we just added
+    scanAndCanvasify();
+    requestAnimationFrame(function(){
+      document.querySelectorAll('canvas.sbpr-pixelcanvas').forEach(renderCanvas);
+    });
   }
 
   ready(function(){
     const grid = document.querySelector('.sbpr-mosaic__grid[data-sbpr-items]');
     if(grid) buildGrid(grid);
 
+    scanAndCanvasify();
+
     let t = null;
     window.addEventListener('resize', function(){
-      if(!grid) return;
       if(t) clearTimeout(t);
-      t = setTimeout(function(){ buildGrid(grid); }, 150);
+      t = setTimeout(function(){
+        if(grid) buildGrid(grid);
+        // re-render all canvases at new layout sizes
+        document.querySelectorAll('canvas.sbpr-pixelcanvas').forEach(renderCanvas);
+      }, 150);
     });
-
   });
 })();

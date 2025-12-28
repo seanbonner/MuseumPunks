@@ -17,9 +17,8 @@ $institution_name = '';
 $institution_url = '';
 $institutions = get_the_terms($post_id, SB_Punks_Registry::TAX_INSTITUTION);
 if ($institutions && !is_wp_error($institutions)) {
-	$inst = $institutions[0]; // Use first institution
+	$inst = $institutions[0];
 	$institution_name = $inst->name;
-	// Check for custom URL in term meta, fallback to archive link
 	$custom_url = get_term_meta($inst->term_id, 'institution_url', true);
 	$institution_url = $custom_url ? $custom_url : get_term_link($inst);
 }
@@ -49,7 +48,6 @@ $img_url = '';
 if (has_post_thumbnail($post_id)) {
 	$img_url = (string)get_the_post_thumbnail_url($post_id, 'full');
 } else {
-	// Try first image in content as fallback.
 	$content_raw = (string)get_post_field('post_content', $post_id);
 	if (preg_match('/<img[^>]+src="([^"]+)"/i', $content_raw, $m)) {
 		$img_url = $m[1];
@@ -57,7 +55,7 @@ if (has_post_thumbnail($post_id)) {
 }
 
 $story_raw = SB_Punks_Registry::extract_story_html((string)get_post_field('post_content', $post_id));
-$story_html = wpautop($story_raw); // Convert line breaks to paragraphs
+$story_html = wpautop($story_raw);
 
 function sbpr_wallet_link($wallet, $name = '') {
 	$wallet = trim((string)$wallet);
@@ -73,7 +71,10 @@ function sbpr_wallet_link($wallet, $name = '') {
 		<div class="sbpr-single__media">
 			<?php if ($img_url): ?>
 				<a class="sbpr-single__imglink" href="<?php echo SB_Punks_Registry::cp_details_url($punk_num_clean); ?>" aria-label="View on CryptoPunks">
-					<img class="sbpr-single__img" src="<?php echo esc_url($img_url); ?>" alt="" decoding="async" loading="eager" />
+					<canvas class="sbpr-single__img sbpr-pixelcanvas" data-src="<?php echo esc_url($img_url); ?>"></canvas>
+					<noscript>
+						<img class="sbpr-single__img" src="<?php echo esc_url($img_url); ?>" alt="" decoding="async" loading="eager" />
+					</noscript>
 				</a>
 			<?php endif; ?>
 		</div>
@@ -146,7 +147,8 @@ function sbpr_wallet_link($wallet, $name = '') {
 						<?php endif; ?>
 					</dd>
 				</div>
-			</dl></div>
+			</dl>
+		</div>
 
 		<div class="sbpr-single__story sbpr-single__story--full">
 			<?php echo wp_kses_post($story_html); ?>
