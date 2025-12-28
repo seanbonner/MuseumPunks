@@ -56,7 +56,8 @@ if (has_post_thumbnail($post_id)) {
 	}
 }
 
-$story_html = SB_Punks_Registry::extract_story_html((string)get_post_field('post_content', $post_id));
+$story_raw = SB_Punks_Registry::extract_story_html((string)get_post_field('post_content', $post_id));
+$story_html = wpautop($story_raw); // Convert line breaks to paragraphs
 
 function sbpr_wallet_link($wallet, $name = '') {
 	$wallet = trim((string)$wallet);

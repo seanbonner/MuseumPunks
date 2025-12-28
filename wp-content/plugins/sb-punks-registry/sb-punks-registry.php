@@ -2,7 +2,7 @@
 /**
  * Plugin Name: SB Punks Registry
  * Description: MuseumPunks registry + front-page mosaic + numeric permalinks + single punk layout.
- * Version: 0.3.0
+ * Version: 0.3.1
  * Author: SB
  */
 
@@ -667,51 +667,78 @@ final class SB_Punks_Registry {
 	 */
 	private static function scale_image_nearest_neighbor(string $image_data, int $target_size) : string {
 		// Use GD for reliable nearest-neighbor scaling
-		if (function_exists('imagecreatefromstring')) {
-			$src = @imagecreatefromstring($image_data);
-			if ($src === false) {
-				error_log('SBPR: GD could not read image');
-				return '';
-			}
-
-			$src_w = imagesx($src);
-			$src_h = imagesy($src);
-
-			$dst = imagecreatetruecolor($target_size, $target_size);
-			if ($dst === false) {
-				imagedestroy($src);
-				return '';
-			}
-
-			// Preserve transparency
-			imagealphablending($dst, false);
-			imagesavealpha($dst, true);
-			$transparent = imagecolorallocatealpha($dst, 0, 0, 0, 127);
-			imagefill($dst, 0, 0, $transparent);
-
-			// Scale using nearest-neighbor (pixel-by-pixel copy)
-			$scale = $target_size / $src_w;
-			for ($y = 0; $y < $target_size; $y++) {
-				for ($x = 0; $x < $target_size; $x++) {
-					$src_x = (int)floor($x / $scale);
-					$src_y = (int)floor($y / $scale);
-					$color = imagecolorat($src, $src_x, $src_y);
-					imagesetpixel($dst, $x, $y, $color);
-				}
-			}
-
-			ob_start();
-			imagepng($dst);
-			$result = ob_get_clean();
-
-			imagedestroy($src);
-			imagedestroy($dst);
-
-			return $result;
+		if (!function_exists('imagecreatefromstring')) {
+			error_log('SBPR: GD not available for scaling');
+			return '';
 		}
 
-		error_log('SBPR: GD not available for scaling');
-		return '';
+		$src = @imagecreatefromstring($image_data);
+		if ($src === false) {
+			error_log('SBPR: GD could not read image');
+			return '';
+		}
+
+		$src_w = imagesx($src);
+		$src_h = imagesy($src);
+
+		// Create truecolor destination image
+		$dst = imagecreatetruecolor($target_size, $target_size);
+		if ($dst === false) {
+			imagedestroy($src);
+			return '';
+		}
+
+		// Set up destination for alpha
+		imagealphablending($dst, false);
+		imagesavealpha($dst, true);
+
+		// Fill with transparent background
+		$transparent = imagecolorallocatealpha($dst, 0, 0, 0, 127);
+		imagefill($dst, 0, 0, $transparent);
+
+		// Convert source to truecolor if it's a palette image (for correct color reading)
+		if (!imageistruecolor($src)) {
+			$truecolor_src = imagecreatetruecolor($src_w, $src_h);
+			imagealphablending($truecolor_src, false);
+			imagesavealpha($truecolor_src, true);
+			imagecopy($truecolor_src, $src, 0, 0, 0, 0, $src_w, $src_h);
+			imagedestroy($src);
+			$src = $truecolor_src;
+		}
+
+		// Scale using nearest-neighbor (pixel-by-pixel copy)
+		$scale = $target_size / $src_w;
+		for ($y = 0; $y < $target_size; $y++) {
+			for ($x = 0; $x < $target_size; $x++) {
+				$src_x = (int)floor($x / $scale);
+				$src_y = (int)floor($y / $scale);
+
+				// Clamp to source bounds
+				$src_x = min($src_x, $src_w - 1);
+				$src_y = min($src_y, $src_h - 1);
+
+				$color = imagecolorat($src, $src_x, $src_y);
+
+				// Extract RGBA components
+				$a = ($color >> 24) & 0x7F;
+				$r = ($color >> 16) & 0xFF;
+				$g = ($color >> 8) & 0xFF;
+				$b = $color & 0xFF;
+
+				// Allocate exact color in destination
+				$dst_color = imagecolorallocatealpha($dst, $r, $g, $b, $a);
+				imagesetpixel($dst, $x, $y, $dst_color);
+			}
+		}
+
+		ob_start();
+		imagepng($dst, null, 0); // 0 = no compression for speed, lossless anyway
+		$result = ob_get_clean();
+
+		imagedestroy($src);
+		imagedestroy($dst);
+
+		return $result;
 	}
 
 	/**
