@@ -31,6 +31,7 @@ $acquisition_type  = (string)get_post_meta($post_id, SB_Punks_Registry::META_ACQ
 $donor_name        = (string)get_post_meta($post_id, SB_Punks_Registry::META_DONOR_NAME, true);
 $donor_url         = (string)get_post_meta($post_id, SB_Punks_Registry::META_DONOR_URL, true);
 $v1_wrapped        = (string)get_post_meta($post_id, SB_Punks_Registry::META_V1_WRAPPED, true);
+$v1_held           = (string)get_post_meta($post_id, SB_Punks_Registry::META_V1_HELD, true);
 
 // Format acquisition date for display
 $acq_human = '';
@@ -143,6 +144,11 @@ function sbpr_wallet_link($wallet, $name = '') {
 							Unwrapped
 						<?php endif; ?>
 					</dd>
+				</div>
+
+				<div class="sbpr-single__fact">
+					<dt>V1 held by institution:</dt>
+					<dd><?php echo ($v1_held === '1') ? 'Yes' : 'No'; ?></dd>
 				</div>
 			</dl>
 		</div>

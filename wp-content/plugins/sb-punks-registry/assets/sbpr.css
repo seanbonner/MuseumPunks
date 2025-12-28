@@ -1,4 +1,4 @@
-/* SB Punks Registry 0.5.5 */
+/* SB Punks Registry 0.6.0 */
 
 /* Front page: kill theme header/nav/logo wrappers. */
 .sbpr-front #wrapper-navbar,
@@ -331,5 +331,97 @@
   font-size: 14px;
   opacity: 0.7;
   margin: 0;
+}
+
+
+/* =======================
+   SBPR: Institutions index (/institution/)
+======================= */
+.sbpr-institutions__main {
+  max-width: none;
+  padding: 0;
+}
+
+.sbpr-institutions__wrap {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: clamp(24px, 4vw, 56px);
+}
+
+.sbpr-institutions__title {
+  font-size: clamp(36px, 6vw, 72px);
+  line-height: 1;
+  margin: 0 0 clamp(24px, 4vw, 48px);
+  letter-spacing: -0.02em;
+}
+
+.sbpr-institutions__grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 24px;
+}
+
+@media (max-width: 900px) {
+  .sbpr-institutions__grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+  }
+}
+
+@media (max-width: 600px) {
+  .sbpr-institutions__grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+  }
+}
+
+.sbpr-institutions__card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  text-decoration: none;
+  color: inherit;
+  padding: 16px;
+  border: 1px solid rgba(0,0,0,.12);
+  background: #fff;
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+
+.sbpr-institutions__card:hover {
+  border-color: rgba(0,0,0,.25);
+  box-shadow: 0 4px 12px rgba(0,0,0,.08);
+}
+
+.sbpr-institutions__logo {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  object-fit: contain;
+  display: block;
+  margin-bottom: 12px;
+}
+
+.sbpr-institutions__placeholder {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #638596;
+  color: #fff;
+  font-size: clamp(32px, 5vw, 48px);
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+
+.sbpr-institutions__name {
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.sbpr-institutions__count {
+  font-size: 13px;
+  opacity: 0.6;
 }
 

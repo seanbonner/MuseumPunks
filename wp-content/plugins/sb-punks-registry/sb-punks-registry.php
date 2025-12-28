@@ -2,7 +2,7 @@
 /**
  * Plugin Name: SB Punks Registry
  * Description: MuseumPunks registry + front-page mosaic + numeric permalinks + single punk layout.
- * Version: 0.5.5
+ * Version: 0.6.0
  * Author: SB
  */
 
@@ -29,6 +29,7 @@ final class SB_Punks_Registry {
 	const META_DONOR_NAME         = '_sbpr_donor_name';        // If donated, donor name
 	const META_DONOR_URL          = '_sbpr_donor_url';         // If donated, donor URL
 	const META_V1_WRAPPED         = '_sbpr_v1_wrapped';        // '1'|'0' - is the V1 wrapped?
+	const META_V1_HELD            = '_sbpr_v1_held';           // '1'|'0' - is the V1 held by institution?
 
 	public static function init() : void {
 		add_action('init', [__CLASS__, 'register_cpt']);
@@ -163,17 +164,33 @@ final class SB_Punks_Registry {
 			<input type="url" name="institution_url" id="institution_url" value="" />
 			<p class="description">The institution's website (e.g., https://moma.org)</p>
 		</div>
+		<div class="form-field">
+			<label for="institution_logo">Logo URL</label>
+			<input type="url" name="institution_logo" id="institution_logo" value="" />
+			<p class="description">Square logo image URL for the institutions grid</p>
+		</div>
 		<?php
 	}
 
 	public static function institution_edit_fields($term) : void {
 		$url = get_term_meta($term->term_id, 'institution_url', true);
+		$logo = get_term_meta($term->term_id, 'institution_logo', true);
 		?>
 		<tr class="form-field">
 			<th scope="row"><label for="institution_url">Website URL</label></th>
 			<td>
 				<input type="url" name="institution_url" id="institution_url" value="<?php echo esc_attr($url); ?>" />
 				<p class="description">The institution's website (e.g., https://moma.org)</p>
+			</td>
+		</tr>
+		<tr class="form-field">
+			<th scope="row"><label for="institution_logo">Logo URL</label></th>
+			<td>
+				<input type="url" name="institution_logo" id="institution_logo" value="<?php echo esc_attr($logo); ?>" class="regular-text" />
+				<p class="description">Square logo image URL for the institutions grid</p>
+				<?php if ($logo): ?>
+					<p><img src="<?php echo esc_url($logo); ?>" style="max-width:150px; height:auto; margin-top:8px;" /></p>
+				<?php endif; ?>
 			</td>
 		</tr>
 		<?php
@@ -183,6 +200,10 @@ final class SB_Punks_Registry {
 		if (isset($_POST['institution_url'])) {
 			$url = esc_url_raw($_POST['institution_url']);
 			update_term_meta($term_id, 'institution_url', $url);
+		}
+		if (isset($_POST['institution_logo'])) {
+			$logo = esc_url_raw($_POST['institution_logo']);
+			update_term_meta($term_id, 'institution_logo', $logo);
 		}
 	}
 
@@ -198,16 +219,29 @@ final class SB_Punks_Registry {
 			'index.php?sbpr_punks=1',
 			'top'
 		);
+
+		// Institutions index page (must come before taxonomy rewrite)
+		add_rewrite_rule(
+			'^institution/?$',
+			'index.php?sbpr_institutions=1',
+			'top'
+		);
 	}
 
 	public static function register_query_vars($vars) {
 		$vars[] = 'sbpr_punks';
+		$vars[] = 'sbpr_institutions';
 		return $vars;
 	}
 
 	public static function template_override($template) {
 		if ((int)get_query_var('sbpr_punks') === 1) {
 			$t = plugin_dir_path(__FILE__) . 'templates/the-punks.php';
+			if (file_exists($t)) return $t;
+		}
+
+		if ((int)get_query_var('sbpr_institutions') === 1) {
+			$t = plugin_dir_path(__FILE__) . 'templates/the-institutions.php';
 			if (file_exists($t)) return $t;
 		}
 
@@ -235,7 +269,7 @@ final class SB_Punks_Registry {
 	}
 
 	public static function enqueue_assets() : void {
-		$ver = '0.5.5';
+		$ver = '0.6.0';
 		wp_enqueue_style('sbpr', plugins_url('assets/sbpr.css', __FILE__), [], $ver);
 		wp_enqueue_script('sbpr', plugins_url('assets/sbpr.js', __FILE__), [], $ver, true);
 	}
@@ -529,6 +563,7 @@ final class SB_Punks_Registry {
 
 		$punk_id = (string)get_post_meta($post->ID, self::META_PUNK_ID, true);
 		$v1_wrapped = (string)get_post_meta($post->ID, self::META_V1_WRAPPED, true);
+		$v1_held = (string)get_post_meta($post->ID, self::META_V1_HELD, true);
 
 		?>
 		<p>
@@ -543,6 +578,14 @@ final class SB_Punks_Registry {
 				<option value="1" <?php selected($v1_wrapped, '1'); ?>>Yes (Wrapped)</option>
 			</select>
 			<span class="description">If wrapped, shows OpenSea link</span>
+		</p>
+
+		<p>
+			<label for="sbpr_v1_held"><strong>V1 Held by Institution?</strong></label><br/>
+			<select id="sbpr_v1_held" name="sbpr_v1_held" style="width:100%;">
+				<option value="0" <?php selected($v1_held, '0'); ?>>No</option>
+				<option value="1" <?php selected($v1_held, '1'); ?>>Yes</option>
+			</select>
 		</p>
 		<?php
 	}
@@ -630,6 +673,10 @@ final class SB_Punks_Registry {
 		// V1 Wrapped status
 		$v1_wrapped = isset($_POST['sbpr_v1_wrapped']) ? ((string)$_POST['sbpr_v1_wrapped'] === '1' ? '1' : '0') : '0';
 		update_post_meta($post_id, self::META_V1_WRAPPED, $v1_wrapped);
+
+		// V1 Held by institution
+		$v1_held = isset($_POST['sbpr_v1_held']) ? ((string)$_POST['sbpr_v1_held'] === '1' ? '1' : '0') : '0';
+		update_post_meta($post_id, self::META_V1_HELD, $v1_held);
 
 		// Wallet info
 		$museum_wallet = isset($_POST['sbpr_museum_wallet']) ? sanitize_text_field((string)$_POST['sbpr_museum_wallet']) : '';
