@@ -58,6 +58,14 @@ if (has_post_thumbnail($post_id)) {
 $story_raw = SB_Punks_Registry::extract_story_html((string)get_post_field('post_content', $post_id));
 $story_html = wpautop($story_raw);
 
+// Exhibition history
+$exhibitions_raw = get_post_meta($post_id, SB_Punks_Registry::META_EXHIBITIONS, true);
+$exhibitions = [];
+if ($exhibitions_raw) {
+	$decoded = json_decode($exhibitions_raw, true);
+	if (is_array($decoded)) $exhibitions = $decoded;
+}
+
 function sbpr_wallet_link($wallet, $name = '') {
 	$wallet = trim((string)$wallet);
 	if (!$wallet) return '';
@@ -152,6 +160,30 @@ function sbpr_wallet_link($wallet, $name = '') {
 		<div class="sbpr-single__story sbpr-single__story--full">
 			<?php echo wp_kses_post($story_html); ?>
 		</div>
+
+		<?php if (!empty($exhibitions)): ?>
+		<div class="sbpr-single__exhibitions">
+			<h3 class="sbpr-single__exhibitions-title">Exhibition history:</h3>
+			<ul class="sbpr-single__exhibitions-list">
+				<?php foreach ($exhibitions as $ex):
+					$title = esc_html($ex['title'] ?? '');
+					$url = esc_url($ex['url'] ?? '');
+					$year = esc_html($ex['year'] ?? '');
+					if (!$title && !$year) continue;
+				?>
+				<li>
+					<?php if ($url && $title): ?>
+						<a href="<?php echo $url; ?>"><?php echo $title; ?></a><?php if ($year): ?>, <?php echo $year; ?><?php endif; ?>
+					<?php elseif ($title): ?>
+						<?php echo $title; ?><?php if ($year): ?>, <?php echo $year; ?><?php endif; ?>
+					<?php elseif ($year): ?>
+						<?php echo $year; ?>
+					<?php endif; ?>
+				</li>
+				<?php endforeach; ?>
+			</ul>
+		</div>
+		<?php endif; ?>
 	</div>
 </main>
 <?php get_footer(); ?>

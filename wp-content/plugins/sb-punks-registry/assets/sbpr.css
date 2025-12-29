@@ -1,4 +1,4 @@
-/* SB Punks Registry 0.6.1 */
+/* SB Punks Registry 0.7.0 */
 
 /* Front page: kill theme header/nav/logo wrappers. */
 .sbpr-front #wrapper-navbar,
@@ -278,6 +278,42 @@
   grid-column: 1 / -1;
   margin-top: clamp(18px, 3vw, 34px);
   order: 3;
+}
+
+/* Single: exhibition history */
+.sbpr-single__exhibitions {
+  grid-column: 1 / -1;
+  margin-top: clamp(24px, 4vw, 40px);
+  order: 4;
+}
+
+.sbpr-single__exhibitions-title {
+  font-size: 16px;
+  font-weight: 700;
+  margin: 0 0 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.sbpr-single__exhibitions-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sbpr-single__exhibitions-list li {
+  margin: 0 0 6px;
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+.sbpr-single__exhibitions-list li:last-child {
+  margin-bottom: 0;
+}
+
+.sbpr-single__exhibitions-list a {
+  color: inherit;
+  text-decoration: underline;
 }
 
 

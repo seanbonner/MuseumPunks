@@ -2,7 +2,7 @@
 /**
  * Plugin Name: SB Punks Registry
  * Description: MuseumPunks registry + front-page mosaic + numeric permalinks + single punk layout.
- * Version: 0.6.2
+ * Version: 0.7.0
  * Author: SB
  */
 
@@ -30,6 +30,7 @@ final class SB_Punks_Registry {
 	const META_DONOR_URL          = '_sbpr_donor_url';         // If donated, donor URL
 	const META_V1_WRAPPED         = '_sbpr_v1_wrapped';        // '1'|'0' - is the V1 wrapped?
 	const META_V1_HELD            = '_sbpr_v1_held';           // '1'|'0' - is the V1 held by institution?
+	const META_EXHIBITIONS        = '_sbpr_exhibitions';       // JSON array of {title, url, year}
 
 	public static function init() : void {
 		add_action('init', [__CLASS__, 'register_cpt']);
@@ -269,7 +270,7 @@ final class SB_Punks_Registry {
 	}
 
 	public static function enqueue_assets() : void {
-		$ver = '0.6.2';
+		$ver = '0.7.0';
 		wp_enqueue_style('sbpr', plugins_url('assets/sbpr.css', __FILE__), [], $ver);
 		wp_enqueue_script('sbpr', plugins_url('assets/sbpr.js', __FILE__), [], $ver, true);
 	}
@@ -547,6 +548,7 @@ final class SB_Punks_Registry {
 		add_meta_box('sbpr_meta', 'Punk Details', [__CLASS__, 'render_meta_box'], self::PT, 'side', 'high');
 		add_meta_box('sbpr_wallet', 'Wallet Info', [__CLASS__, 'render_wallet_box'], self::PT, 'normal', 'high');
 		add_meta_box('sbpr_acquisition', 'Acquisition Details', [__CLASS__, 'render_acquisition_box'], self::PT, 'normal', 'default');
+		add_meta_box('sbpr_exhibitions', 'Exhibition History', [__CLASS__, 'render_exhibitions_box'], self::PT, 'normal', 'default');
 	}
 
 	private static function field_row($label, $name, $value, $placeholder = '') {
@@ -646,6 +648,71 @@ final class SB_Punks_Registry {
 		<?php
 	}
 
+	public static function render_exhibitions_box($post) : void {
+		$exhibitions_raw = get_post_meta($post->ID, self::META_EXHIBITIONS, true);
+		$exhibitions = [];
+		if ($exhibitions_raw) {
+			$decoded = json_decode($exhibitions_raw, true);
+			if (is_array($decoded)) $exhibitions = $decoded;
+		}
+		// Ensure at least one empty row for adding
+		if (empty($exhibitions)) {
+			$exhibitions = [['title' => '', 'url' => '', 'year' => '']];
+		}
+		?>
+		<p class="description">Add exhibitions where this punk has been shown. Leave empty rows blank.</p>
+		<table class="widefat" id="sbpr_exhibitions_table">
+			<thead>
+				<tr>
+					<th style="width:45%;">Exhibition Title</th>
+					<th style="width:35%;">URL</th>
+					<th style="width:15%;">Year</th>
+					<th style="width:5%;"></th>
+				</tr>
+			</thead>
+			<tbody>
+				<?php foreach ($exhibitions as $i => $ex): ?>
+				<tr class="sbpr-exhibition-row">
+					<td><input type="text" name="sbpr_ex_title[]" value="<?php echo esc_attr($ex['title'] ?? ''); ?>" style="width:100%;" placeholder="Exhibition name" /></td>
+					<td><input type="url" name="sbpr_ex_url[]" value="<?php echo esc_attr($ex['url'] ?? ''); ?>" style="width:100%;" placeholder="https://..." /></td>
+					<td><input type="text" name="sbpr_ex_year[]" value="<?php echo esc_attr($ex['year'] ?? ''); ?>" style="width:100%;" placeholder="2024" /></td>
+					<td><button type="button" class="button sbpr-remove-row" title="Remove">&times;</button></td>
+				</tr>
+				<?php endforeach; ?>
+			</tbody>
+		</table>
+		<p><button type="button" class="button" id="sbpr_add_exhibition">+ Add Exhibition</button></p>
+		<script>
+		(function(){
+			var table = document.getElementById('sbpr_exhibitions_table');
+			var tbody = table.querySelector('tbody');
+			var addBtn = document.getElementById('sbpr_add_exhibition');
+
+			addBtn.addEventListener('click', function(){
+				var row = document.createElement('tr');
+				row.className = 'sbpr-exhibition-row';
+				row.innerHTML = '<td><input type="text" name="sbpr_ex_title[]" value="" style="width:100%;" placeholder="Exhibition name" /></td>' +
+					'<td><input type="url" name="sbpr_ex_url[]" value="" style="width:100%;" placeholder="https://..." /></td>' +
+					'<td><input type="text" name="sbpr_ex_year[]" value="" style="width:100%;" placeholder="2024" /></td>' +
+					'<td><button type="button" class="button sbpr-remove-row" title="Remove">&times;</button></td>';
+				tbody.appendChild(row);
+			});
+
+			tbody.addEventListener('click', function(e){
+				if(e.target.classList.contains('sbpr-remove-row')){
+					var row = e.target.closest('tr');
+					if(tbody.querySelectorAll('tr').length > 1){
+						row.remove();
+					} else {
+						row.querySelectorAll('input').forEach(function(inp){ inp.value = ''; });
+					}
+				}
+			});
+		})();
+		</script>
+		<?php
+	}
+
 	public static function save_meta($post_id, $post, $update) : void {
 		if (!isset($_POST['sbpr_nonce']) || !wp_verify_nonce($_POST['sbpr_nonce'], 'sbpr_save_meta')) return;
 		if (defined('DOING_AUTOSAVE') && DOING_AUTOSAVE) return;
@@ -698,6 +765,25 @@ final class SB_Punks_Registry {
 		$donor_url = isset($_POST['sbpr_donor_url']) ? esc_url_raw((string)$_POST['sbpr_donor_url']) : '';
 		update_post_meta($post_id, self::META_DONOR_NAME, $donor_name);
 		update_post_meta($post_id, self::META_DONOR_URL, $donor_url);
+
+		// Exhibition history
+		$ex_titles = isset($_POST['sbpr_ex_title']) ? (array)$_POST['sbpr_ex_title'] : [];
+		$ex_urls = isset($_POST['sbpr_ex_url']) ? (array)$_POST['sbpr_ex_url'] : [];
+		$ex_years = isset($_POST['sbpr_ex_year']) ? (array)$_POST['sbpr_ex_year'] : [];
+		$exhibitions = [];
+		for ($i = 0; $i < count($ex_titles); $i++) {
+			$title = sanitize_text_field((string)($ex_titles[$i] ?? ''));
+			$url = esc_url_raw((string)($ex_urls[$i] ?? ''));
+			$year = sanitize_text_field((string)($ex_years[$i] ?? ''));
+			if ($title || $url || $year) {
+				$exhibitions[] = ['title' => $title, 'url' => $url, 'year' => $year];
+			}
+		}
+		if (!empty($exhibitions)) {
+			update_post_meta($post_id, self::META_EXHIBITIONS, wp_json_encode($exhibitions));
+		} else {
+			delete_post_meta($post_id, self::META_EXHIBITIONS);
+		}
 	}
 }
 
