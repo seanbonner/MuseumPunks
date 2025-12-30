@@ -30,6 +30,9 @@ final class SB_Punks_Registry {
 	const META_DONOR_URL          = '_sbpr_donor_url';         // If donated, donor URL
 	const META_V1_WRAPPED         = '_sbpr_v1_wrapped';        // '1'|'0' - is the V1 wrapped?
 	const META_V1_HELD            = '_sbpr_v1_held';           // '1'|'0' - is the V1 held by institution?
+	const META_CLAIMER_WALLET     = '_sbpr_claimer_wallet';    // Wallet address of original claimer
+	const META_CLAIMER_NAME       = '_sbpr_claimer_name';      // Name of claimer if known
+	const META_CLAIM_DATE         = '_sbpr_claim_date';        // Day of claim (1-30, June 2017)
 	const META_EXHIBITIONS        = '_sbpr_exhibitions';       // JSON array of {title, url, year}
 
 	public static function init() : void {
@@ -547,6 +550,7 @@ final class SB_Punks_Registry {
 	public static function add_meta_boxes() : void {
 		add_meta_box('sbpr_meta', 'Punk Details', [__CLASS__, 'render_meta_box'], self::PT, 'side', 'high');
 		add_meta_box('sbpr_wallet', 'Wallet Info', [__CLASS__, 'render_wallet_box'], self::PT, 'normal', 'high');
+		add_meta_box('sbpr_claimer', 'Original Claimer', [__CLASS__, 'render_claimer_box'], self::PT, 'normal', 'high');
 		add_meta_box('sbpr_acquisition', 'Acquisition Details', [__CLASS__, 'render_acquisition_box'], self::PT, 'normal', 'default');
 		add_meta_box('sbpr_exhibitions', 'Exhibition History', [__CLASS__, 'render_exhibitions_box'], self::PT, 'normal', 'default');
 	}
@@ -598,6 +602,28 @@ final class SB_Punks_Registry {
 		<p class="description" style="margin-top:0;">Institution is set via the "Institutions" taxonomy (see sidebar or below). Add wallet address here:</p>
 		<?php
 		self::field_row('Institution Wallet', 'sbpr_museum_wallet', $museum_wallet, '0x...');
+	}
+
+	public static function render_claimer_box($post) : void {
+		$claimer_wallet = (string)get_post_meta($post->ID, self::META_CLAIMER_WALLET, true);
+		$claimer_name = (string)get_post_meta($post->ID, self::META_CLAIMER_NAME, true);
+		$claim_date = (string)get_post_meta($post->ID, self::META_CLAIM_DATE, true);
+		?>
+		<p class="description" style="margin-top:0;">Original claimer info from June 2017.</p>
+		<?php
+		self::field_row('Claimer Wallet', 'sbpr_claimer_wallet', $claimer_wallet, '0x...');
+		self::field_row('Claimer Name (if known)', 'sbpr_claimer_name', $claimer_name, 'Name or handle');
+		?>
+		<p style="margin:0 0 12px;">
+			<label><strong>Claim Date (June 2017)</strong></label><br/>
+			<select name="sbpr_claim_date" style="width:100%;">
+				<option value="">-- Select day --</option>
+				<?php for ($d = 1; $d <= 30; $d++): ?>
+					<option value="<?php echo $d; ?>" <?php selected($claim_date, (string)$d); ?>>June <?php echo $d; ?>, 2017</option>
+				<?php endfor; ?>
+			</select>
+		</p>
+		<?php
 	}
 
 	public static function render_acquisition_box($post) : void {
@@ -748,6 +774,14 @@ final class SB_Punks_Registry {
 		// Wallet info
 		$museum_wallet = isset($_POST['sbpr_museum_wallet']) ? sanitize_text_field((string)$_POST['sbpr_museum_wallet']) : '';
 		if ($museum_wallet) update_post_meta($post_id, self::META_MUSEUM_WALLET, strtolower($museum_wallet));
+
+		// Claimer info
+		$claimer_wallet = isset($_POST['sbpr_claimer_wallet']) ? sanitize_text_field((string)$_POST['sbpr_claimer_wallet']) : '';
+		$claimer_name = isset($_POST['sbpr_claimer_name']) ? sanitize_text_field((string)$_POST['sbpr_claimer_name']) : '';
+		$claim_date = isset($_POST['sbpr_claim_date']) ? sanitize_text_field((string)$_POST['sbpr_claim_date']) : '';
+		update_post_meta($post_id, self::META_CLAIMER_WALLET, $claimer_wallet ? strtolower($claimer_wallet) : '');
+		update_post_meta($post_id, self::META_CLAIMER_NAME, $claimer_name);
+		update_post_meta($post_id, self::META_CLAIM_DATE, $claim_date);
 
 		// Acquisition details
 		$acquisition_date_in = isset($_POST['sbpr_acquisition_date']) ? (string)$_POST['sbpr_acquisition_date'] : '';

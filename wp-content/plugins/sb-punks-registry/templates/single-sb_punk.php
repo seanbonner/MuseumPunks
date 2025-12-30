@@ -32,6 +32,9 @@ $donor_name        = (string)get_post_meta($post_id, SB_Punks_Registry::META_DON
 $donor_url         = (string)get_post_meta($post_id, SB_Punks_Registry::META_DONOR_URL, true);
 $v1_wrapped        = (string)get_post_meta($post_id, SB_Punks_Registry::META_V1_WRAPPED, true);
 $v1_held           = (string)get_post_meta($post_id, SB_Punks_Registry::META_V1_HELD, true);
+$claimer_wallet    = (string)get_post_meta($post_id, SB_Punks_Registry::META_CLAIMER_WALLET, true);
+$claimer_name      = (string)get_post_meta($post_id, SB_Punks_Registry::META_CLAIMER_NAME, true);
+$claim_date        = (string)get_post_meta($post_id, SB_Punks_Registry::META_CLAIM_DATE, true);
 
 // Format acquisition date for display
 $acq_human = '';
@@ -133,6 +136,20 @@ function sbpr_wallet_link($wallet, $name = '') {
 								<?php echo esc_html($donor_name); ?>
 							<?php endif; ?>
 						</dd>
+					</div>
+				<?php endif; ?>
+
+				<?php if ($claimer_wallet || $claimer_name): ?>
+					<div class="sbpr-single__fact">
+						<dt>Claimer:</dt>
+						<dd><?php echo sbpr_wallet_link($claimer_wallet, $claimer_name); ?></dd>
+					</div>
+				<?php endif; ?>
+
+				<?php if ($claim_date): ?>
+					<div class="sbpr-single__fact">
+						<dt>Claimed:</dt>
+						<dd>June <?php echo esc_html($claim_date); ?>, 2017</dd>
 					</div>
 				<?php endif; ?>
 
