@@ -106,6 +106,13 @@ function sbpr_wallet_link($wallet, $name = '') {
 					</div>
 				<?php endif; ?>
 
+				<?php if ($museum_wallet): ?>
+					<div class="sbpr-single__fact">
+						<dt>Institution wallet:</dt>
+						<dd><?php echo sbpr_wallet_link($museum_wallet); ?></dd>
+					</div>
+				<?php endif; ?>
+
 				<?php if ($acq_human): ?>
 					<div class="sbpr-single__fact">
 						<dt>Acquired:</dt>
@@ -150,13 +157,6 @@ function sbpr_wallet_link($wallet, $name = '') {
 					<div class="sbpr-single__fact">
 						<dt>Claimed:</dt>
 						<dd>June <?php echo esc_html($claim_date); ?>, 2017</dd>
-					</div>
-				<?php endif; ?>
-
-				<?php if ($museum_wallet): ?>
-					<div class="sbpr-single__fact">
-						<dt>Wallet:</dt>
-						<dd><?php echo sbpr_wallet_link($museum_wallet); ?></dd>
 					</div>
 				<?php endif; ?>
 
