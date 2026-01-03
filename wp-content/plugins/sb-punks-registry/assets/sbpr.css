@@ -1,4 +1,4 @@
-/* SB Punks Registry 0.7.0 */
+/* SB Punks Registry 0.7.1 */
 
 /* Front page: kill theme header/nav/logo wrappers. */
 .sbpr-front #wrapper-navbar,
@@ -168,19 +168,26 @@
 /* =======================
    SBPR: single punk page
 ======================= */
+.sbpr-single{
+  overflow-x: hidden;
+}
+
 .sbpr-single .site-main.sbpr-single__main{
-  max-width: none;
+  max-width: 100%;
   padding: 0;
+  overflow-x: hidden;
 }
 
 .sbpr-single__wrap{
   max-width: 1200px;
+  width: 100%;
   margin: 0 auto;
   padding: clamp(24px, 4vw, 56px);
   display: grid;
   grid-template-columns: 1.2fr 1fr;
   gap: clamp(18px, 3vw, 44px);
   align-items: start;
+  box-sizing: border-box;
 }
 
 .sbpr-single__media{
@@ -200,6 +207,7 @@
 .sbpr-single__img{
   display: block;
   width: 100%;
+  max-width: 100%;
   height: auto;
   image-rendering: pixelated;
   image-rendering: -moz-crisp-edges;
