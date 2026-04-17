@@ -51,7 +51,8 @@ donor_url: "https://..."                    # optional
 claimer_wallet: "0x..."                     # required
 claimer_name: "Optional Name"               # optional
 claim_date: 9                               # day of June 2017 (1–30)
-v1_wrapped: false                           # bool
+v1_wrapped: false                           # bool; if true, V1 status renders with a link
+                                            # to the OpenSea wrapped-punks contract for this ID
 v1_held: false                              # bool — does the institution hold the V1?
 burned: true                                # optional — set true if the punk was accidentally burned
                                             # and now lives at the CryptoPunks contract.
