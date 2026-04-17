@@ -1,0 +1,19 @@
+---
+permalink: /institution/
+title: Institutions
+layout: layouts/base.njk
+---
+<section class="institutions-index">
+  {% for inst in collections.institutions %}
+    {% set count = (collections.punks | punksInInstitution(inst.data.slug)).length %}
+    <a class="institutions-index__card" href="/institution/{{ inst.data.slug }}/">
+      {% if inst.data.logo %}
+        <img class="institutions-index__logo" src="{{ inst.data.logo }}" alt="{{ inst.data.name }}">
+      {% endif %}
+      <div class="institutions-index__meta">
+        <div class="institutions-index__name">{{ inst.data.name }}</div>
+        <div class="institutions-index__count">{{ count }} punk{% if count != 1 %}s{% endif %}</div>
+      </div>
+    </a>
+  {% endfor %}
+</section>

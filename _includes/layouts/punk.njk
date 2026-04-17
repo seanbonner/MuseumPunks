@@ -1,0 +1,109 @@
+---
+layout: layouts/base.njk
+---
+{% set punkNum = id | string %}
+{% set institutionData = collections.institutions | institutionBySlug(institution) %}
+{% set acquisitionLabel = "MUSEUM ACQUISITION" %}
+{% if acquisition_type == "donation" %}{% set acquisitionLabel = "MUSEUM DONATION" %}{% endif %}
+{% if acquisition_type == "purchase" %}{% set acquisitionLabel = "MUSEUM PURCHASE" %}{% endif %}
+
+<article class="punk-single">
+  <div class="punk-single__wrap">
+    <div class="punk-single__media">
+      <a class="punk-single__imglink" href="{{ site.cryptopunksDetailsBase }}{{ punkNum }}" aria-label="View on CryptoPunks">
+        <img class="punk-single__img" src="/images/punks/{{ punkNum }}.svg" alt="CryptoPunk #{{ punkNum }}" decoding="async" loading="eager">
+      </a>
+    </div>
+
+    <div class="punk-single__content">
+      <h1 class="punk-single__num">{{ punkNum }}</h1>
+      <div class="punk-single__label">{{ acquisitionLabel }}</div>
+
+      <dl class="punk-single__facts">
+        {% if institutionData %}
+        <div class="punk-single__fact">
+          <dt>Institution:</dt>
+          <dd><a href="/institution/{{ institutionData.data.slug }}/">{{ institutionData.data.name }}</a></dd>
+        </div>
+        {% endif %}
+
+        {% if museum_wallet %}
+        <div class="punk-single__fact">
+          <dt>{% if burned %}Final location:{% else %}Institution wallet:{% endif %}</dt>
+          <dd>
+            <a href="{{ site.cryptopunksAccountBase }}{{ museum_wallet | lower }}">{{ museum_wallet | shortWallet }}</a>
+            {% if burned %}<span class="punk-single__burned"> (accidentally burned — <a href="https://burnedpunks.com/{{ punkNum }}/">see BurnedPunks</a>)</span>{% endif %}
+          </dd>
+        </div>
+        {% endif %}
+
+        {% if acquired %}
+        <div class="punk-single__fact">
+          <dt>Acquired:</dt>
+          <dd>
+            {% set acquiredDisplay = (acquired | formatLongDate) or acquired %}
+            {% if announcement_url %}
+              <a href="{{ announcement_url }}">{{ acquiredDisplay }}</a>
+            {% else %}
+              {{ acquiredDisplay }}
+            {% endif %}
+          </dd>
+        </div>
+        {% endif %}
+
+        {% if acquisition_type %}
+        <div class="punk-single__fact">
+          <dt>Type:</dt>
+          <dd>{{ acquisition_type | capitalize }}</dd>
+        </div>
+        {% endif %}
+
+        {% if donor_name %}
+        <div class="punk-single__fact">
+          <dt>Donated by:</dt>
+          <dd>
+            {% if donor_url %}
+              <a href="{{ donor_url }}">{{ donor_name }}</a>
+            {% else %}
+              {{ donor_name }}
+            {% endif %}
+          </dd>
+        </div>
+        {% endif %}
+
+        {% if claimer_wallet or claimer_name %}
+        <div class="punk-single__fact">
+          <dt>Claimer:</dt>
+          <dd>
+            <a href="{{ site.cryptopunksAccountBase }}{{ claimer_wallet | lower }}">
+              {% if claimer_name %}{{ claimer_name }}{% else %}{{ claimer_wallet | shortWallet }}{% endif %}
+            </a>
+          </dd>
+        </div>
+        {% endif %}
+
+        {% if claim_date %}
+        <div class="punk-single__fact">
+          <dt>Claimed:</dt>
+          <dd>{{ claim_date | claimDateLabel }}</dd>
+        </div>
+        {% endif %}
+
+        <div class="punk-single__fact">
+          <dt>V1 held by institution:</dt>
+          <dd>
+            {% if v1_held %}
+              Yes{% if v1_wrapped %} (wrapped){% else %} (unwrapped){% endif %}
+            {% else %}
+              No{% if v1_wrapped %} (wrapped){% else %} (unwrapped){% endif %}
+            {% endif %}
+          </dd>
+        </div>
+      </dl>
+    </div>
+
+    <div class="punk-single__story">
+      {{ content | safe }}
+    </div>
+  </div>
+</article>

@@ -1,0 +1,19 @@
+{
+  "name": "museumpunks",
+  "version": "1.0.0",
+  "description": "Static site for museumpunks.com — registry of CryptoPunks acquired by museums.",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "build": "eleventy",
+    "serve": "eleventy --serve",
+    "fetch-svgs": "node scripts/fetch-punk-svgs.mjs",
+    "import-narratives": "node scripts/import-narratives.mjs"
+  },
+  "devDependencies": {
+    "@11ty/eleventy": "^3.0.0"
+  },
+  "dependencies": {
+    "viem": "^2.21.0"
+  }
+}

@@ -1,0 +1,33 @@
+---
+layout: layouts/base.njk
+---
+{% set instPunks = collections.punks | punksInInstitution(slug) %}
+
+<section class="institution-page">
+  <div class="institution-page__header">
+    {% if logo %}
+      <img class="institution-page__logo" src="{{ logo }}" alt="{{ name }}">
+    {% endif %}
+    <h1 class="institution-page__name">{{ name }}</h1>
+    {% if url %}
+      <p class="institution-page__url"><a href="{{ url }}">{{ url | replace("https://", "") | replace("http://", "") }}</a></p>
+    {% endif %}
+  </div>
+
+  {% if content %}
+  <div class="institution-page__body">
+    {{ content | safe }}
+  </div>
+  {% endif %}
+
+  <h2 class="institution-page__punks-heading">Punks in this collection</h2>
+  <div class="punks-index">
+    {% for p in instPunks %}
+      {% set pid = p.data.id | string %}
+      <a class="punks-index__card" href="/{{ pid }}/">
+        <img class="punks-index__img" src="/images/punks/{{ pid }}.svg" alt="CryptoPunk #{{ pid }}">
+        <span class="punks-index__num">{{ pid }}</span>
+      </a>
+    {% endfor %}
+  </div>
+</section>

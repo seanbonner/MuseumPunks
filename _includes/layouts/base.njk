@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% if title %}{{ title }} — {{ site.title }}{% else %}{{ site.title }}{% endif %}</title>
+<meta name="description" content="{{ description or site.description }}">
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body class="{{ bodyClass or '' }}">
+{% if not hideHeader %}
+<header class="site-header">
+  <a class="site-header__logo" href="/">
+    <img class="site-header__logo-img site-header__logo-img--default" src="/images/logos/museumpunks.gif" alt="Museum Punks">
+    <img class="site-header__logo-img site-header__logo-img--hover" src="/images/logos/museumpunks-inv.gif" alt="">
+  </a>
+  <nav class="site-nav" aria-label="Primary">
+    <ul>
+      <li><a href="/about/"{% if page.url == "/about/" %} aria-current="page"{% endif %}>The Shape of Recognition</a></li>
+      <li><a href="/the-punks/"{% if page.url == "/the-punks/" %} aria-current="page"{% endif %}>The Punks</a></li>
+      <li><a href="/institution/"{% if page.url == "/institution/" %} aria-current="page"{% endif %}>Institutions</a></li>
+      <li><a href="/faq/"{% if page.url == "/faq/" %} aria-current="page"{% endif %}>FAQ</a></li>
+    </ul>
+  </nav>
+</header>
+{% endif %}
+
+{% if contentPage %}
+<main class="content-page">
+  <div class="content-page__wrap">
+    {{ content | safe }}
+  </div>
+</main>
+{% else %}
+<main>
+{{ content | safe }}
+</main>
+{% endif %}
+
+<footer class="site-footer">
+  <p>
+    Museum Punks is a project by <a href="http://seanbonner.com/">Sean Bonner</a>, published under a <a href="https://creativecommons.org/licenses/by/4.0/">CC-BY 4.0 License</a>. You may also enjoy <a href="https://burnedpunks.com">Burned Punks</a>.
+  </p>
+</footer>
+</body>
+</html>

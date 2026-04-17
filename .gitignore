@@ -26,3 +26,11 @@ Desktop.ini
 
 # Temporary files
 *.tmp
+
+# Node / Eleventy
+node_modules/
+_site/
+.cache/
+
+# Local-only source assets
+bits/
