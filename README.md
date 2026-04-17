@@ -1,112 +1,111 @@
 # MuseumPunks
 
-A WordPress site for tracking CryptoPunks held by museums and cultural institutions.
+A registry of CryptoPunks held by museums and cultural institutions.
 
-## Project Structure
+Live at [museumpunks.com](https://museumpunks.com).
+
+## Stack
+
+Static site built with [Eleventy v3](https://www.11ty.dev/). Content lives in `.md` files — one per punk, one per institution. Punk images are SVGs fetched from the on-chain [CryptoPunksData contract](https://etherscan.io/address/0x16F5A35647D6F03D5D3da7b35409D65ba03aF3B2) and committed to the repo. Institution logos are plain image files. Deploys via [Cloudflare Pages](https://pages.cloudflare.com/) on push to `main`.
+
+The previous WordPress + Hostinger implementation is preserved on the `wp-legacy` branch for reference.
+
+## Repo layout
 
 ```
-wp-content/
-├── plugins/
-│   └── sb-punks-registry/       # Core plugin for punk registry
-│       ├── templates/           # Custom page templates
-│       └── assets/              # CSS and JS
-└── themes/
-    ├── blocksy/                 # Base theme
-    ├── minimalio/               # Alternative base theme
-    └── minimalio-child/         # Active child theme
+punks/              One .md file per punk (filename = punk ID).
+institutions/       One .md file per institution (filename = institution slug).
+pages/              Top-level pages (homepage, /the-punks/, /institution/, /about/, /faq/).
+images/
+├── logos/          Site logos.
+├── institutions/   Institution logos (one per slug).
+└── punks/          On-chain SVGs (one per punk).
+_includes/layouts/  Nunjucks templates (base, punk, institution).
+_data/site.js       Site-wide config.
+css/style.css       All styles.
+js/mosaic.js        Homepage mosaic (runs in browser).
+scripts/
+├── fetch-punk-svgs.mjs    Pulls SVGs from the CryptoPunksData contract.
+└── import-narratives.mjs  Re-pulls verbatim narratives from the live WP site via defuddle (historical).
+eleventy.config.mjs
 ```
 
-## Deployment
+## Local development
 
-This project uses GitHub Actions for automatic deployment to Hostinger via FTP.
+```
+npm install
+npm run serve
+```
 
-**Triggers:** Push to `main` branch (only when `wp-content/themes/` or `wp-content/plugins/` change)
+Opens `http://localhost:8080/` with live reload.
 
-**Required Secrets:**
-- `FTP_SERVER` - Hostinger FTP server
-- `FTP_USERNAME` - FTP username
-- `FTP_PASSWORD` - FTP password
+## Adding a new punk
 
-**Deploy Target:** `museumpunks.com`
+1. Create `punks/{id}.md` with the frontmatter schema below.
+2. Run `npm run fetch-svgs -- {id}` to pull the punk's SVG from chain.
+3. Commit + push. Cloudflare Pages builds and deploys automatically.
 
-## Custom Plugin
+### Punk frontmatter schema
 
-### SB Punks Registry (v0.7.0)
+```yaml
+---
+id: 74                                      # required; matches filename
+institution: moma                           # required; must match an institutions/{slug}.md
+acquisition_type: donation                  # donation | purchase
+acquired: "2025-12-19"                      # optional; YYYY-MM-DD (quoted). Omit for imprecise dates.
+announcement_url: "https://..."             # optional
+museum_wallet: "0x..."                      # required for purchase; omit for donation
+donor_name: "Name"                          # required for donation; omit for purchase
+donor_url: "https://..."                    # optional
+claimer_wallet: "0x..."                     # required
+claimer_name: "Optional Name"               # optional
+claim_date: 9                               # day of June 2017 (1–30)
+v1_wrapped: false                           # bool
+v1_held: false                              # bool — does the institution hold the V1?
+burned: true                                # optional — set true if the punk was accidentally burned
+                                            # and now lives at the CryptoPunks contract.
+                                            # Changes the "Institution wallet" label to "Final location"
+                                            # and adds a link to the BurnedPunks entry.
+---
+Narrative body in markdown. Inline links encouraged.
+```
 
-Registry plugin for tracking CryptoPunks in museum collections.
+## Adding a new institution
 
-**Custom Post Type:**
-- `sb_punk` - Individual punk entries with numeric permalinks (`/1234/`)
+1. Create `institutions/{slug}.md` with the frontmatter below.
+2. Drop the institution's logo into `images/institutions/{slug}.{ext}`.
+3. Reference the slug from any punk's `institution:` frontmatter field.
 
-**Taxonomy:**
-- `sb_institution` - Museums and cultural institutions
-  - Custom fields: Website URL, Logo URL
+### Institution frontmatter schema
 
-**Meta Fields:**
+```yaml
+---
+slug: moma                                  # required; matches filename
+name: "Museum of Modern Art (MoMA)"         # required
+url: "https://moma.org"                     # required
+logo: "/images/institutions/moma.jpg"       # required
+---
+Optional notes about the institution (rendered on /institution/{slug}/).
+```
 
-| Field | Description |
-|-------|-------------|
-| `_sbpr_punk_id` | Punk number (0-9999), synced with title/slug |
-| `_sbpr_acquisition_date` | Date acquired (YYYY-MM-DD) |
-| `_sbpr_announcement_url` | Link to acquisition announcement |
-| `_sbpr_museum_wallet` | Institution's wallet address |
-| `_sbpr_acquisition_type` | donation / purchase |
-| `_sbpr_donor_name` | Donor name (if donated) |
-| `_sbpr_donor_url` | Donor URL (if donated) |
-| `_sbpr_v1_wrapped` | V1 wrapper status |
-| `_sbpr_v1_held` | V1 held by institution |
-| `_sbpr_claimer_wallet` | Original claimer wallet |
-| `_sbpr_claimer_name` | Claimer name (if known) |
-| `_sbpr_claim_date` | Day claimed (1-30 June 2017) |
-| `_sbpr_exhibitions` | JSON array of exhibition history |
+## URL structure
 
-**Shortcodes:**
-- `[sb_punks_home]` - Homepage mosaic with logo header
-- `[sb_punks_index]` - Grid index of all punks
+| Route | Source |
+|---|---|
+| `/` | `pages/index.njk` — mosaic homepage |
+| `/{id}/` | `punks/{id}.md` |
+| `/the-punks/` | `pages/the-punks.njk` — grid of all punks |
+| `/institution/` | `pages/institutions.njk` — list of all institutions |
+| `/institution/{slug}/` | `institutions/{slug}.md` — filtered punk grid for that institution |
+| `/about/` | `pages/about.md` |
+| `/faq/` | `pages/faq.md` |
 
-**Custom Pages:**
-- `/the-punks/` - Full punk index (sorted by acquisition date)
-- `/institution/` - Institutions index
-- `/institution/{slug}/` - Individual institution archive
+## Editing content
 
-**Settings:**
-- About URL (logo link destination)
-- Logo default/hover images
-
-**Features:**
-- Numeric permalinks (`/1234/` for punk #1234)
-- Institution taxonomy with logo support
-- Acquisition tracking (date, type, donor info)
-- Exhibition history management
-- V1 Wrapped Punk support (links to OpenSea)
-- Original claimer tracking
-- Comments/trackbacks disabled
-
-## URL Structure
-
-| Content | URL Pattern |
-|---------|-------------|
-| Individual Punk | `/{punk-number}/` |
-| Punks Index | `/the-punks/` |
-| Institutions | `/institution/` |
-| Institution Archive | `/institution/{slug}/` |
-
-## External Links
-
-The plugin generates links to:
-- CryptoPunks.app - Punk details and wallet profiles
-- OpenSea - V1 Wrapped Punks
-
-## Requirements
-
-- WordPress 5.0+
-- PHP 7.4+
-- GD library (for image handling)
+Every page is a `.md` file. Edit, commit, push. Cloudflare Pages rebuilds on every push to `main`. Every branch and PR gets its own `*.pages.dev` preview URL.
 
 ## License
 
-Private/Proprietary
+Content (prose, data, curation): [CC-BY 4.0](https://creativecommons.org/licenses/by/4.0/).
 
----
-
-*Last updated: January 8, 2026*
+Site code: MIT-adjacent.
